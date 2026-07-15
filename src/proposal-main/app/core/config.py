@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = ""
     RATE_LIMIT_PER_MINUTE: int = 5
     RATE_LIMIT_PER_HOUR: int = 30
-    PROPOSAL_CREDIT_COST: int = 
+    PROPOSAL_CREDIT_COST: int = 1
 
     model_config = SettingsConfigDict(
         env_file=".env",
