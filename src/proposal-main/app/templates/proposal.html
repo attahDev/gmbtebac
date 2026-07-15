@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page {
+      size: A4;
+      margin: 2.5cm 2cm;
+      @bottom-center {
+        content: "Page " counter(page) " of " counter(pages);
+        font-size: 9pt;
+        color: #888;
+      }
+      @bottom-right {
+        content: "{{ date }}";
+        font-size: 9pt;
+        color: #888;
+      }
+    }
+
+    @page title-page {
+      margin: 0;
+      @bottom-center { content: none; }
+      @bottom-right  { content: none; }
+    }
+
+    @page toc-page {
+      margin: 2.5cm 2cm;
+      @bottom-center { content: none; }
+      @bottom-right  { content: none; }
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Georgia", serif;
+      font-size: 11pt;
+      color: #1a1a1a;
+      line-height: 1.7;
+    }
+
+    /* ── Title Page ── */
+    .title-page {
+      page: title-page;
+      page-break-after: always;
+      width: 21cm;
+      height: 29.7cm;
+      position: relative;
+      background: #ffffff;
+    }
+
+    /* Left accent bar */
+    .title-page-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 0.7cm;
+      height: 100%;
+      background: #1a1a1a;
+    }
+
+    /* All content sits to the right of the bar */
+    .title-page-inner {
+      position: absolute;
+      top: 0;
+      left: 0.7cm;
+      right: 0;
+      bottom: 0;
+      padding: 2.8cm 2cm 2.2cm 1.8cm;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .title-page-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .title-page-logo {
+      font-size: 10pt;
+      font-weight: bold;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: #1a1a1a;
+    }
+
+    .title-page-meta {
+      text-align: right;
+      font-size: 9pt;
+      color: #888;
+      line-height: 1.8;
+    }
+
+    .title-page-center {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 1.5cm 0;
+    }
+
+    .title-page-type {
+      font-size: 8.5pt;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      color: #888;
+      margin-bottom: 14pt;
+    }
+
+    .title-page-accent {
+      width: 36pt;
+      height: 2.5pt;
+      background: #1a1a1a;
+      margin-bottom: 18pt;
+    }
+
+    .title-page-title {
+      font-size: 24pt;
+      font-weight: bold;
+      color: #1a1a1a;
+      line-height: 1.25;
+      max-width: 85%;
+    }
+
+    .title-page-bottom {
+      border-top: 1px solid #e0e0e0;
+      padding-top: 14pt;
+      display: flex;
+      justify-content: space-between;
+      font-size: 8.5pt;
+      color: #aaa;
+    }
+
+    /* ── Table of Contents ── */
+    .toc-page {
+      page: toc-page;
+      page-break-after: always;
+    }
+
+    .toc-header {
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #aaa;
+      margin-bottom: 4pt;
+    }
+
+    .toc-title {
+      font-size: 17pt;
+      font-weight: bold;
+      color: #1a1a1a;
+      margin-bottom: 22pt;
+      padding-bottom: 10pt;
+      border-bottom: 2px solid #1a1a1a;
+    }
+
+    .toc-list {
+      list-style: none;
+    }
+
+    .toc-list li {
+      display: flex;
+      align-items: baseline;
+      padding: 8pt 0;
+      border-bottom: 1px solid #eee;
+      font-size: 10.5pt;
+    }
+
+    .toc-list li:last-child {
+      border-bottom: none;
+    }
+
+    .toc-section-num {
+      font-size: 8pt;
+      color: #aaa;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-right: 12pt;
+      white-space: nowrap;
+    }
+
+    .toc-section-name {
+      flex: 1;
+      color: #1a1a1a;
+      font-weight: bold;
+    }
+
+    .toc-dots {
+      flex: 1;
+      border-bottom: 1px dotted #ccc;
+      margin: 0 8pt 3pt 8pt;
+    }
+
+    .toc-page-num {
+      font-size: 9.5pt;
+      color: #888;
+      white-space: nowrap;
+      min-width: 20pt;
+      text-align: right;
+    }
+
+    /* ── Content header ── */
+    .content-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding-bottom: 12pt;
+      border-bottom: 2px solid #1a1a1a;
+      margin-bottom: 22pt;
+    }
+
+    .content-header-logo {
+      font-size: 11pt;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: #1a1a1a;
+      text-transform: uppercase;
+    }
+
+    .content-header-right {
+      text-align: right;
+      font-size: 9pt;
+      color: #555;
+    }
+
+    /* ── Pricing ── */
+    .pricing-section h4 {
+      font-size: 11pt;
+      font-weight: bold;
+      margin: 14pt 0 6pt;
+      color: #1a1a1a;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .pricing-intro { margin-bottom: 10pt; color: #333; line-height: 1.7; }
+    .pricing-note  { margin-top: 10pt; font-size: 9.5pt; color: #666; font-style: italic; }
+    .pricing-table { width: 100%; border-collapse: collapse; margin-bottom: 12pt; font-size: 10pt; }
+    .pricing-table th { background: #1a1a1a; color: #f5f2ec; padding: 6pt 8pt; text-align: left; font-weight: bold; font-size: 9pt; letter-spacing: 0.5px; }
+    .pricing-table td { padding: 6pt 8pt; border-bottom: 1px solid #e8e4dc; vertical-align: top; color: #333; }
+    .pricing-table tbody tr:nth-child(even) td { background: #faf9f6; }
+    .pricing-table tfoot td { border-top: 2px solid #1a1a1a; border-bottom: none; font-weight: bold; font-size: 11pt; color: #1a1a1a; padding-top: 8pt; }
+    .pricing-table .total-row td { background: #f5f2ec; }
+
+    /* ── Sections ── */
+    .section {
+      margin-bottom: 24pt;
+      page-break-inside: avoid;
+    }
+
+    .section-label {
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #aaa;
+      margin-bottom: 2pt;
+    }
+
+    .section-title {
+      font-size: 13pt;
+      font-weight: bold;
+      color: #1a1a1a;
+      margin-bottom: 8pt;
+      padding-bottom: 4pt;
+      border-bottom: 1px solid #eee;
+    }
+
+    .section-body {
+      font-size: 11pt;
+      color: #333;
+      white-space: pre-line;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PAGE 1: TITLE PAGE -->
+  <div class="title-page">
+    <div class="title-page-bar"></div>
+    <div class="title-page-inner">
+
+      <div class="title-page-top">
+        <div class="title-page-logo">Proposal</div>
+        <div class="title-page-meta">
+          Prepared: {{ date }}<br>
+          Ref: {{ proposal_id }}
+        </div>
+      </div>
+
+      <div class="title-page-center">
+        <div class="title-page-type">{{ proposal_type }}</div>
+        <div class="title-page-accent"></div>
+        <div class="title-page-title">{{ title }}</div>
+      </div>
+
+      <div class="title-page-bottom">
+        <span>Confidential</span>
+        <span>{{ date }}</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PAGE 2: TABLE OF CONTENTS -->
+  <div class="toc-page">
+    <div class="toc-header">Contents</div>
+    <div class="toc-title">Table of Contents</div>
+    <ul class="toc-list">
+      {% set toc_entries = [
+        ("01", "Executive Summary",  "section-1"),
+        ("02", "Project Overview",   "section-2"),
+        ("03", "Scope of Work",      "section-3"),
+        ("04", "Qualifications",     "section-4"),
+        ("05", "Timeline",           "section-5"),
+        ("06", "Pricing",            "section-6"),
+        ("07", "Terms & Conditions", "section-7"),
+        ("08", "Agreement",          "section-8"),
+      ] %}
+      {% for num, name, anchor in toc_entries %}
+      <li>
+        <span class="toc-section-num">Section {{ num }}</span>
+        <span class="toc-section-name">{{ name }}</span>
+        <span class="toc-dots"></span>
+        <span class="toc-page-num">{{ toc_page_numbers.get(anchor, "—") }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <!-- PAGES 3+: CONTENT -->
+  <div class="content-header">
+    <div class="content-header-logo">Proposal</div>
+    <div class="content-header-right">
+      Ref: {{ proposal_id }}<br>
+      {{ date }}
+    </div>
+  </div>
+
+  {% set sections = [
+    ("1", "Executive Summary",    content.executive_summary,    false),
+    ("2", "Project Overview",     content.project_overview,     false),
+    ("3", "Scope of Work",        content.scope_of_work,        false),
+    ("4", "Qualifications",       content.qualifications,       false),
+    ("5", "Timeline",             content.timeline,             false),
+    ("6", "Pricing",              content.pricing,              true),
+    ("7", "Terms & Conditions",   content.terms_and_conditions, false),
+    ("8", "Agreement",            content.agreement,            false),
+  ] %}
+
+  {% for num, heading, body, is_html in sections %}
+  <div class="section" id="section-{{ num }}">
+    <div class="section-label">S E C T I O N  {{ num }}</div>
+    <div class="section-title">{{ heading }}</div>
+    <div class="section-body">
+      {% if is_html %}{{ body | safe }}{% else %}{{ body }}{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+
+</body>
+</html>

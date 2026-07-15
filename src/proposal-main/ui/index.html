@@ -1,0 +1,1828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proposal Builder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&family=Montserrat:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #F0F1F4;
+      --card-dark: #0C1829;
+      --card-dark-2: #112038;
+      --accent: #F5BB00;
+      --accent-hover: #DCA800;
+      --white: #FFFFFF;
+      --text: #111827;
+      --muted: #6B7280;
+      --border: #E5E7EB;
+      --success: #22C55E;
+      --danger: #EF4444;
+      --radius: 14px;
+      --radius-sm: 8px;
+      --font: 'Open Sans', sans-serif;
+      --font-heading: 'Montserrat', sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+      font-family: var(--font-heading);
+    }
+
+    /* ── Page wrapper ── */
+    .page { max-width: 1000px; margin: 0 auto; padding: 24px 20px 80px; }
+
+    @media (max-width: 768px) {
+      .page { padding: 16px 14px 60px; }
+      .input-card { padding: 24px 20px; }
+      .input-card::before { width: 180px; height: 180px; right: -40px; top: -40px; }
+    }
+    @media (max-width: 480px) {
+      .input-card { padding: 20px 16px; }
+      .input-card::before { width: 130px; height: 130px; right: -25px; top: -25px; }
+      .tool-title { font-size: 22px; }
+      .result-title-bar h2 { font-size: 17px; }
+    }
+
+    /* ── Page header ── */
+    .page-header {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 20px;
+    }
+    .btn-new-proposal {
+      background: var(--danger);
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+    .btn-new-proposal:hover { background: #dc2626; }
+
+    /* ── Input card ── */
+    .input-card {
+      background: var(--card-dark);
+      border-radius: var(--radius);
+      padding: 32px 36px;
+      margin-bottom: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .input-card::before {
+      content: '';
+      position: absolute;
+      right: -60px;
+      top: -60px;
+      width: 300px;
+      height: 300px;
+      background-image: url('assets/vector-glow.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      pointer-events: none;
+    }
+
+    .ai-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.85);
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+    }
+    .ai-badge-dot {
+      width: 6px; height: 6px;
+      background: var(--accent);
+      border-radius: 50%;
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .tool-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--white);
+      margin-bottom: 6px;
+      letter-spacing: -0.5px;
+    }
+    .tool-title .accent { color: var(--accent); }
+
+    .tool-subtitle {
+      color: rgba(255,255,255,0.5);
+      font-size: 13px;
+      margin-bottom: 28px;
+      max-width: 560px;
+    }
+
+    /* ── Form ── */
+    .form-field { margin-bottom: 14px; }
+    .form-label {
+      display: block;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 6px;
+    }
+    .form-textarea {
+      width: 100%;
+      min-height: 100px;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      color: var(--white);
+      font-family: var(--font);
+      font-size: 13.5px;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.15s;
+      line-height: 1.6;
+    }
+    .form-textarea::placeholder { color: rgba(255,255,255,0.25); font-style: italic; }
+    .form-textarea:focus { border-color: rgba(245,187,0,0.5); }
+
+    .form-input {
+      width: 100%;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      color: var(--white);
+      font-family: var(--font);
+      font-size: 13.5px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .form-input::placeholder { color: rgba(255,255,255,0.25); }
+    .form-input:focus { border-color: rgba(245,187,0,0.5); }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    @media (max-width: 560px) { .form-row { grid-template-columns: 1fr; } }
+
+    .form-footer { display: flex; justify-content: flex-end; margin-top: 6px; }
+
+    .btn-generate {
+      background: var(--accent);
+      color: #0C1829;
+      border: none;
+      padding: 12px 28px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.15s, transform 0.1s;
+      letter-spacing: 0.2px;
+    }
+    .btn-generate:hover:not(:disabled) { background: var(--accent-hover); }
+    .btn-generate:active:not(:disabled) { transform: scale(0.98); }
+    .btn-generate:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .btn-spinner {
+      width: 14px; height: 14px;
+      border: 2px solid rgba(12,24,41,0.3);
+      border-top-color: #0C1829;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    .btn-generate.loading .btn-spinner { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-bar {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      margin-top: 12px;
+      display: none;
+    }
+    .error-bar.visible { display: block; }
+
+    /* ── Loading state ── */
+    .loading-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      display: flex;
+      align-items: flex-start;
+      gap: 28px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+    }
+    .spinner-ring {
+      width: 56px;
+      height: 56px;
+      border: 4px solid rgba(245,187,0,0.15);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+    .loading-content h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 14px;
+    }
+    .steps-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .steps-list li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--muted);
+      font-family: var(--font);
+    }
+    .step-indicator {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: #D1D5DB;
+    }
+    .steps-list li.done { color: var(--text); }
+    .steps-list li.done .step-indicator { background: var(--success); }
+    .steps-list li.active { color: var(--text); font-weight: 500; }
+    .steps-list li.active .step-indicator {
+      background: var(--accent);
+      animation: pulse-dot 1.2s ease-in-out infinite;
+    }
+
+    .skeleton-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+    }
+    .skel {
+      background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    /* ── Empty state ── */
+    .empty-state {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 56px 32px;
+      text-align: center;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+    }
+    .empty-icon {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      border: 3px solid var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      font-size: 28px;
+    }
+    .empty-state h3 { font-size: 17px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+    .empty-state p { font-size: 13px; color: var(--muted); max-width: 380px; margin: 0 auto; }
+
+    /* ── Proposal result ── */
+    .result-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .result-title-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .result-title-bar h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .result-actions { display: flex; gap: 8px; align-items: center; }
+
+    .btn-action {
+      padding: 7px 14px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--white);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.12s;
+    }
+    .btn-action:hover { background: var(--bg); }
+    .btn-action:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-action.primary { background: var(--card-dark); color: var(--white); border-color: var(--card-dark); }
+    .btn-action.primary:hover { background: var(--card-dark-2); }
+    .btn-action .dl-spinner {
+      width: 10px; height: 10px;
+      border: 1.5px solid rgba(255,255,255,0.3);
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    .btn-action.loading .dl-spinner { display: block; }
+    .btn-action.loading .dl-icon { display: none; }
+
+    /* ── Proposal document ── */
+    .proposal-document {
+      background: var(--white);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      margin-bottom: 28px;
+    }
+
+    .doc-header {
+      background: var(--card-dark);
+      padding: 28px 32px 24px;
+    }
+    .pro-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(245,187,0,0.15);
+      border: 1px solid rgba(245,187,0,0.3);
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-bottom: 12px;
+    }
+    .doc-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 4px;
+      line-height: 1.3;
+    }
+    .doc-prepared-by {
+      font-size: 12px;
+      color: rgba(255,255,255,0.45);
+      margin-bottom: 20px;
+    }
+    .doc-meta {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+    @media (max-width: 600px) { .doc-meta { grid-template-columns: 1fr 1fr; } }
+    .meta-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 4px;
+    }
+    .meta-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--white);
+    }
+
+    /* ── Document body ── */
+    .doc-body { padding: 8px 0; }
+
+    .doc-section {
+      padding: 24px 32px;
+      border-bottom: 1px solid var(--bg);
+    }
+    .doc-section:last-child { border-bottom: none; }
+
+    .section-header-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .section-num {
+      width: 28px; height: 28px;
+      background: var(--card-dark);
+      color: var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .section-content {
+      color: #374151;
+      font-size: 13.5px;
+      line-height: 1.78;
+      padding-left: 40px;
+    }
+    .section-content p { margin-bottom: 10px; }
+    .section-content p:last-child { margin-bottom: 0; }
+
+    /* ── Scope bullets (auto-detected) ── */
+    .scope-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--bg);
+    }
+    .scope-item:last-child { border-bottom: none; }
+    .scope-bullet {
+      width: 18px; height: 18px;
+      background: var(--card-dark);
+      color: var(--accent);
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .scope-label { font-weight: 600; color: var(--text); }
+    .scope-desc { font-size: 13px; color: var(--muted); }
+
+    /* ── Timeline cards ── */
+    .timeline-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    .timeline-card {
+      background: var(--bg);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+    }
+    .timeline-phase-num {
+      width: 26px; height: 26px;
+      background: var(--card-dark);
+      color: var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .timeline-phase-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .timeline-phase-range {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .timeline-phase-desc {
+      font-size: 12px;
+      color: #6B7280;
+      line-height: 1.5;
+    }
+
+    /* ── Pricing HTML ── */
+    .pricing-wrap { color: #374151; }
+    .pricing-wrap h4 { font-size: 13px; font-weight: 700; margin: 14px 0 8px; color: var(--text); }
+    .pricing-wrap .pricing-intro { font-size: 13px; line-height: 1.7; margin-bottom: 10px; }
+    .pricing-wrap .pricing-note { font-size: 12px; color: var(--muted); font-style: italic; margin-top: 8px; }
+    .pricing-wrap table { width: 100%; min-width: 420px; border-collapse: collapse; font-size: 12.5px; }
+    .pricing-wrap > table,
+    .pricing-wrap .pricing-table-scroll {
+      display: block;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .pricing-wrap th {
+      background: var(--card-dark);
+      color: rgba(255,255,255,0.8);
+      padding: 8px 10px;
+      text-align: left;
+      font-family: var(--mono);
+      font-size: 9.5px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .pricing-wrap td { padding: 8px 10px; border-bottom: 1px solid var(--bg); vertical-align: top; }
+    .pricing-wrap tbody tr:nth-child(even) td { background: #fafafa; }
+    .pricing-wrap tfoot td {
+      border-top: 2px solid var(--card-dark);
+      font-weight: 700;
+      font-size: 14px;
+      padding-top: 10px;
+      background: var(--bg);
+    }
+
+    /* ── Signature block ── */
+    .sig-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 20px;
+    }
+    @media (max-width: 560px) { .sig-grid { grid-template-columns: 1fr; } }
+    .sig-col {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+    }
+    .sig-col-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .sig-line {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 20px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ── Edit mode ── */
+    .edit-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 32px;
+      background: rgba(245,187,0,0.06);
+      border-bottom: 1px solid rgba(245,187,0,0.15);
+    }
+    .edit-notice {
+      flex: 1;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--accent-hover);
+    }
+    .btn-cancel-edit {
+      padding: 6px 14px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font);
+      font-size: 12px;
+      border: 1px solid var(--border);
+      background: var(--white);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .btn-cancel-edit:hover { background: var(--bg); }
+    .btn-save-edit {
+      padding: 6px 16px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font);
+      font-size: 12px;
+      font-weight: 600;
+      border: none;
+      background: var(--card-dark);
+      color: var(--white);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.1s;
+    }
+    .btn-save-edit:hover { background: var(--card-dark-2); }
+
+    .section-textarea {
+      width: 100%;
+      min-height: 120px;
+      border: 1px solid rgba(245,187,0,0.35);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-family: var(--font);
+      font-size: 13.5px;
+      line-height: 1.7;
+      resize: vertical;
+      outline: none;
+      background: #fffdf0;
+      color: var(--text);
+    }
+    .section-textarea:focus { border-color: var(--accent); }
+
+    /* ── Pricing Table Editor ── */
+    .pricing-editor { display: flex; flex-direction: column; gap: 16px; }
+    .pricing-editor-intro {
+      width: 100%; border: 1px solid rgba(245,187,0,0.35); border-radius: var(--radius-sm);
+      padding: 10px 12px; font-family: var(--font); font-size: 13px; line-height: 1.7;
+      resize: vertical; outline: none; background: #fffdf0; color: var(--text); min-height: 60px;
+    }
+    .pricing-editor-intro:focus, .pricing-editor-note:focus { border-color: var(--accent); }
+    .pricing-editor-label {
+      font-family: var(--mono); font-size: 9.5px; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+    }
+    .pricing-tbl-wrap { overflow-x: auto; }
+    .pricing-edit-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .pricing-edit-table th {
+      background: var(--card-dark); color: rgba(255,255,255,0.8); padding: 8px 10px;
+      text-align: left; font-family: var(--mono); font-size: 9.5px;
+      letter-spacing: 1px; text-transform: uppercase; white-space: nowrap;
+    }
+    .pricing-edit-table td { padding: 3px 3px; border-bottom: 1px solid var(--bg); vertical-align: middle; }
+    .pricing-edit-table tbody tr:nth-child(even) td { background: #fafafa; }
+    .pricing-edit-table tfoot td {
+      border-top: 2px solid var(--card-dark); font-weight: 700; padding: 8px 10px; background: var(--bg);
+    }
+    .tbl-cell-input {
+      width: 100%; border: none; background: transparent; font-family: var(--font);
+      font-size: 12.5px; color: var(--text); padding: 5px 8px; outline: none;
+      border-radius: 4px; transition: background 0.1s;
+    }
+    .tbl-cell-input:focus { background: #fffde7; outline: 1px solid var(--accent); }
+    .tbl-cell-input.num { text-align: right; font-family: var(--mono); }
+    .btn-del-row {
+      background: none; border: none; cursor: pointer; color: #d1d5db; font-size: 14px;
+      padding: 4px 6px; border-radius: 4px; line-height: 1; transition: color 0.1s, background 0.1s;
+    }
+    .btn-del-row:hover { color: var(--danger); background: #fef2f2; }
+    .btn-add-row {
+      display: flex; align-items: center; gap: 6px; border: 1px dashed var(--border);
+      background: var(--white); color: var(--muted); font-family: var(--font); font-size: 12px;
+      padding: 7px 14px; border-radius: var(--radius-sm); cursor: pointer; transition: all 0.12s; margin-top: 4px;
+    }
+    .btn-add-row:hover { border-color: var(--accent); color: var(--text); background: #fffdf0; }
+    .pricing-editor-note {
+      width: 100%; border: 1px solid rgba(245,187,0,0.35); border-radius: var(--radius-sm);
+      padding: 8px 12px; font-family: var(--font); font-size: 12px; font-style: italic;
+      color: var(--muted); resize: vertical; outline: none; background: #fffdf0;
+    }
+
+    .edit-title-input {
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(245,187,0,0.5);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-family: var(--font);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent);
+      width: 100%;
+      outline: none;
+    }
+
+    /* ── Doc footer ── */
+    .doc-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 32px;
+      background: var(--bg);
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+    }
+    .doc-footer strong { color: var(--text); }
+
+    /* ── Past proposals ── */
+    .past-proposals-section { margin-top: 8px; }
+    .section-header-row-outer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .section-header-row-outer h3 { font-size: 16px; font-weight: 700; color: var(--text); }
+    .view-all-link { font-size: 13px; color: var(--card-dark); font-weight: 500; cursor: pointer; text-decoration: none; }
+    .view-all-link:hover { text-decoration: underline; }
+
+    .proposals-table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius: var(--radius);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .proposals-table {
+      width: 100%;
+      min-width: 480px;
+      border-collapse: collapse;
+      background: var(--white);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .proposals-table th {
+      background: var(--white);
+      padding: 12px 16px;
+      text-align: left;
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .proposals-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--bg);
+      vertical-align: middle;
+    }
+    .proposals-table tr:last-child td { border-bottom: none; }
+    .proposals-table tr:hover td { background: #fafafa; }
+
+    .td-proposal-title { font-weight: 600; font-size: 13.5px; color: var(--text); margin-bottom: 2px; }
+    .td-proposal-date { font-size: 11.5px; color: var(--muted); }
+    .td-value { font-weight: 700; font-size: 14px; color: var(--text); }
+
+    .td-actions { display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+    .btn-tbl {
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-family: var(--font);
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--white);
+      color: var(--text);
+      transition: all 0.1s;
+    }
+    .btn-tbl:hover { background: var(--bg); }
+    .btn-tbl.word:hover { background: #dbeafe; border-color: #93c5fd; color: #1d4ed8; }
+    .btn-tbl.pdf { background: #fef2f2; color: var(--danger); border-color: #fecaca; }
+    .btn-tbl.pdf:hover { background: #fee2e2; }
+    .btn-tbl.icon { padding: 5px 8px; color: var(--muted); }
+    .btn-tbl.icon:hover { color: var(--danger); border-color: #fecaca; background: #fef2f2; }
+
+    .empty-table { padding: 40px 16px; text-align: center; color: var(--muted); font-size: 13px; }
+
+    /* ── Pagination ── */
+    .pagination { display: flex; gap: 6px; justify-content: center; margin-top: 14px; }
+    .btn-page {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-family: var(--font);
+      font-size: 12px;
+      border: 1px solid var(--border);
+      background: var(--white);
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+    .btn-page:hover:not(:disabled) { background: var(--card-dark); color: var(--white); border-color: var(--card-dark); }
+    .btn-page:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-page.active { background: var(--card-dark); color: var(--white); border-color: var(--card-dark); }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Page header -->
+  <div class="page-header">
+    <button class="btn-new-proposal" onclick="newProposal()">+ New Proposal</button>
+  </div>
+
+  <!-- Input card -->
+  <div class="input-card">
+    <div class="ai-badge"><span class="ai-badge-dot"></span>Instant Generation</div>
+    <h1 class="tool-title">Proposal <span class="accent">Builder</span></h1>
+    <p class="tool-subtitle">Generate professional, client-ready proposals in seconds. Describe your project and let us write the full document.</p>
+
+    <div class="form-field">
+      <label class="form-label">Describe your project or service</label>
+      <textarea id="promptInput" class="form-textarea"
+        placeholder="e.g. A web and mobile app development project for a fintech startup in Lagos. The project includes building a user management dashboard with React and Node.js. Budget is around $15,000..."></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-field" style="margin-bottom:0">
+        <label class="form-label">Client / Company Name</label>
+        <input type="text" id="clientName" class="form-input" placeholder="e.g. FinVest Technologies">
+      </div>
+      <div class="form-field" style="margin-bottom:0">
+        <label class="form-label">Estimated Budget</label>
+        <input type="text" id="budgetInput" class="form-input" placeholder="e.g. $15,000">
+      </div>
+    </div>
+    <div class="form-footer" style="margin-top:16px">
+      <button id="generateBtn" class="btn-generate" onclick="handleGenerate()">
+        <span class="btn-spinner" id="btnSpinner"></span>
+        <span id="btnText">Generate Proposal →</span>
+      </button>
+    </div>
+    <div class="error-bar" id="errorBar"></div>
+  </div>
+
+  <!-- Loading state -->
+  <div class="loading-card" id="loadingCard" style="display:none">
+    <div class="spinner-ring"></div>
+    <div class="loading-content">
+      <h3>Building your proposal...</h3>
+      <ul class="steps-list" id="stepsList">
+        <li id="step0"><span class="step-indicator"></span>Analysing project requirements</li>
+        <li id="step1"><span class="step-indicator"></span>Structuring proposal sections</li>
+        <li id="step2"><span class="step-indicator"></span>Generating deliverables &amp; timeline</li>
+        <li id="step3"><span class="step-indicator"></span>Building budget breakdown</li>
+        <li id="step4"><span class="step-indicator"></span>Finalising terms &amp; signature blocks</li>
+      </ul>
+    </div>
+  </div>
+  <div class="skeleton-card" id="skeletonCard" style="display:none">
+    <div class="skel" style="height:16px;width:45%;margin-bottom:16px"></div>
+    <div class="skel" style="height:10px;width:90%"></div>
+    <div class="skel" style="height:10px;width:80%"></div>
+    <div class="skel" style="height:10px;width:85%"></div>
+    <div class="skel" style="height:10px;width:60%;margin-bottom:20px"></div>
+    <div class="skel" style="height:10px;width:75%"></div>
+    <div class="skel" style="height:10px;width:88%"></div>
+    <div class="skel" style="height:10px;width:70%"></div>
+  </div>
+
+  <!-- Empty state -->
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">📋</div>
+    <h3>Your proposals will appear here</h3>
+    <p>Fill in the project details above and click "Generate Proposal" — your full professional document will be ready in seconds.</p>
+  </div>
+
+  <!-- Proposal result -->
+  <div id="resultSection" style="display:none">
+    <div class="result-label">Generated Proposal</div>
+    <div class="result-title-bar">
+      <h2 id="resultHeading">Proposal</h2>
+      <div class="result-actions">
+        <button class="btn-action" id="editBtn" onclick="enterEditMode()">✎ Edit</button>
+        <button class="btn-action" id="wordBtn" onclick="handleDownload('docx')">
+          <span class="dl-icon">📄</span>
+          <span class="dl-spinner"></span>
+          Word
+        </button>
+        <button class="btn-action primary" id="pdfBtn" onclick="handleDownload('pdf')">
+          <span class="dl-icon">⬇</span>
+          <span class="dl-spinner"></span>
+          PDF
+        </button>
+      </div>
+    </div>
+
+    <div class="proposal-document" id="proposalDocument">
+      <!-- Header -->
+      <div class="doc-header">
+        <div class="pro-badge">⭐ Professional Proposal</div>
+        <div id="docTitle" class="doc-title"></div>
+        <div id="docPreparedBy" class="doc-prepared-by"></div>
+        <div class="doc-meta">
+          <div>
+            <div class="meta-label">Prepared For</div>
+            <div class="meta-value" id="metaClient">—</div>
+          </div>
+          <div>
+            <div class="meta-label">Total Value</div>
+            <div class="meta-value" id="metaValue">—</div>
+          </div>
+          <div>
+            <div class="meta-label">Date</div>
+            <div class="meta-value" id="metaDate">—</div>
+          </div>
+          <div>
+            <div class="meta-label">Valid Until</div>
+            <div class="meta-value" id="metaValid">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Body sections -->
+      <div class="doc-body" id="docBody"></div>
+
+      <!-- Footer -->
+      <div class="doc-footer">
+        <span>Generated by <strong>GMBTE Proposal Builder</strong></span>
+        <span>Confidential · Page 1 of 1</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Past Proposals -->
+  <div class="past-proposals-section">
+    <div class="section-header-row-outer">
+      <h3>Past Proposals</h3>
+      <span class="view-all-link" onclick="loadHistory(1)">View All</span>
+    </div>
+    <div class="proposals-table-wrap">
+      <table class="proposals-table">
+        <thead>
+          <tr>
+            <th>Proposal Title</th>
+            <th>Value</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="proposalsList">
+          <tr><td colspan="3" class="empty-table">No proposals yet. Generate your first one above.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+</div>
+
+<script>
+  /* ── Config ─────────────────────────────────────────────── */
+  const TOKEN = new URLSearchParams(window.location.search).get('token') || '';
+  const API = '';
+  const PAGE_SIZE = 5;
+
+  let currentId = null;
+  let currentPage = 1;
+  let currentProposal = null;
+  let rawSectionData = {};
+  let editSnapshot = null;
+  let stepTimer = null;
+
+  const SECTIONS = [
+    { key: 'executive_summary',   label: 'Executive Summary',             isHtml: false },
+    { key: 'project_overview',    label: 'Project Overview',              isHtml: false },
+    { key: 'scope_of_work',       label: 'Project Scope & Deliverables',  isHtml: false, scope: true },
+    { key: 'qualifications',      label: 'Our Qualifications',            isHtml: false },
+    { key: 'timeline',            label: 'Project Timeline',              isHtml: false, timeline: true },
+    { key: 'pricing',             label: 'Investment & Budget Breakdown',  isHtml: true  },
+    { key: 'terms_and_conditions',label: 'Terms & Conditions',            isHtml: false },
+    { key: 'agreement',           label: 'Acceptance & Signature',        isHtml: false, signature: true },
+  ];
+
+  /* ── Auth helpers ────────────────────────────────────────── */
+  function getHeaders(json = true) {
+    const h = {};
+    if (json) h['Content-Type'] = 'application/json';
+    if (TOKEN) h['Authorization'] = `Bearer ${TOKEN}`;
+    return h;
+  }
+
+  /* ── Generate ────────────────────────────────────────────── */
+  async function handleGenerate() {
+    const prompt = document.getElementById('promptInput').value.trim();
+    const clientName = document.getElementById('clientName').value.trim();
+    const budget = document.getElementById('budgetInput').value.trim();
+
+    if (prompt.length < 10) { showError('Please describe your project (at least 10 characters).'); return; }
+    hideError();
+    setGenerating(true);
+    startStepAnimation();
+
+    try {
+      const res = await fetch(`${API}/api/proposals/generate`, {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ prompt, client_name: clientName, estimated_budget: budget }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Generation failed (${res.status})`);
+      }
+      const data = await res.json();
+      stopStepAnimation(true);
+      renderProposal(data);
+      loadHistory(1);
+    } catch (e) {
+      stopStepAnimation(false);
+      showError(e.message);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  /* ── Step animation ─────────────────────────────────────── */
+  const STEP_DELAYS = [0, 3500, 7500, 13000, 18000];
+
+  function startStepAnimation() {
+    const steps = document.querySelectorAll('#stepsList li');
+    steps.forEach(s => { s.className = ''; });
+    steps[0].classList.add('active');
+
+    let current = 0;
+    stepTimer = setInterval(() => {
+      if (current < steps.length - 1) {
+        steps[current].className = 'done';
+        current++;
+        steps[current].className = 'active';
+      }
+    }, 4500);
+  }
+
+  function stopStepAnimation(success) {
+    if (stepTimer) { clearInterval(stepTimer); stepTimer = null; }
+    if (success) {
+      document.querySelectorAll('#stepsList li').forEach(s => s.className = 'done');
+      setTimeout(hideLoading, 600);
+    } else {
+      hideLoading();
+    }
+  }
+
+  function showLoading() {
+    document.getElementById('loadingCard').style.display = 'flex';
+    document.getElementById('skeletonCard').style.display = 'block';
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('resultSection').style.display = 'none';
+  }
+
+  function hideLoading() {
+    document.getElementById('loadingCard').style.display = 'none';
+    document.getElementById('skeletonCard').style.display = 'none';
+  }
+
+  function setGenerating(on) {
+    const btn = document.getElementById('generateBtn');
+    const spinner = document.getElementById('btnSpinner');
+    const text = document.getElementById('btnText');
+    btn.disabled = on;
+    btn.classList.toggle('loading', on);
+    spinner.style.display = on ? 'block' : 'none';
+    text.textContent = on ? 'Generating…' : 'Generate Proposal →';
+    if (on) showLoading();
+  }
+
+  function renderProposal(data) {
+    currentId = data.id;
+    currentProposal = data;
+    rawSectionData = {};
+
+    document.getElementById('resultHeading').textContent = `Proposal for ${data.client_name || 'Client'}`;
+    document.getElementById('docTitle').textContent = data.title;
+
+    const preparedBy = data.user_name
+      ? `Prepared by ${data.user_name} · Business Toolkit AI`
+      : 'Prepared by Business Toolkit AI';
+    document.getElementById('docPreparedBy').textContent = preparedBy;
+
+    document.getElementById('metaClient').textContent = data.client_name || '—';
+    document.getElementById('metaValue').textContent = data.total_value || data.estimated_budget || '—';
+
+    const now = new Date();
+    const valid = new Date(now); valid.setDate(valid.getDate() + 30);
+    document.getElementById('metaDate').textContent = fmtDate(now);
+    document.getElementById('metaValid').textContent = fmtDate(valid);
+
+    const body = document.getElementById('docBody');
+    body.innerHTML = '';
+
+    SECTIONS.forEach((sec, idx) => {
+      const raw = data.content[sec.key] || '';
+      rawSectionData[sec.key] = raw;
+
+      const section = document.createElement('div');
+      section.className = 'doc-section';
+      section.dataset.section = sec.key;
+
+      const headerRow = document.createElement('div');
+      headerRow.className = 'section-header-row';
+      headerRow.innerHTML = `
+        <div class="section-num">${idx + 1}</div>
+        <div class="section-title">${sec.label}</div>
+      `;
+      section.appendChild(headerRow);
+
+      const content = document.createElement('div');
+      content.className = 'section-content';
+
+      if (sec.isHtml) {
+        const wrap = document.createElement('div');
+        wrap.className = 'pricing-wrap';
+        const decoded = (() => {
+          const t = document.createElement('textarea');
+          t.innerHTML = raw;
+          return t.value;
+        })();
+        wrap.innerHTML = decoded;
+        content.appendChild(wrap);
+      } else if (sec.signature) {
+        content.appendChild(renderSignatureBlock(raw));
+      } else if (sec.timeline) {
+        content.appendChild(renderTimeline(raw));
+      } else if (sec.scope) {
+        content.appendChild(renderScope(raw));
+      } else {
+        content.appendChild(renderText(raw));
+      }
+
+      section.appendChild(content);
+      body.appendChild(section);
+    });
+
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('resultSection').style.display = 'block';
+    document.getElementById('resultSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /* ── Section renderers ───────────────────────────────────── */
+  function renderText(raw) {
+    const div = document.createElement('div');
+    const paras = raw.split(/\n\n+/).filter(p => p.trim());
+    if (paras.length <= 1) {
+      const lines = raw.split(/\n/).filter(l => l.trim());
+      lines.forEach(line => {
+        const p = document.createElement('p');
+        p.textContent = line.trim();
+        div.appendChild(p);
+      });
+    } else {
+      paras.forEach(para => {
+        const p = document.createElement('p');
+        p.textContent = para.trim();
+        div.appendChild(p);
+      });
+    }
+    return div;
+  }
+
+  function renderScope(raw) {
+    const lines = raw.split('\n').filter(l => l.trim());
+    const items = [];
+    const dashPattern = /^(.{3,50})\s+[—–-]\s+(.+)$/;
+    const colonPattern = /^([A-Z][^:]{2,50}):\s+(.+)$/;
+
+    lines.forEach(line => {
+      const dm = line.match(dashPattern);
+      const cm = line.match(colonPattern);
+      if (dm) items.push({ label: dm[1].trim(), desc: dm[2].trim() });
+      else if (cm) items.push({ label: cm[1].trim(), desc: cm[2].trim() });
+    });
+
+    if (items.length >= 3) {
+      const wrap = document.createElement('div');
+      items.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'scope-item';
+        row.innerHTML = `
+          <div class="scope-bullet">✓</div>
+          <div><div class="scope-label">${esc(item.label)}</div><div class="scope-desc">${esc(item.desc)}</div></div>
+        `;
+        wrap.appendChild(row);
+      });
+      return wrap;
+    }
+
+    return renderText(raw);
+  }
+
+  function renderTimeline(raw) {
+    const phasePattern = /(?:Week\s*[\d-]+[:\s]+|Phase\s*\d+[:\s]+|(?:^|\n)(\d+)[:\.\)]\s+)([^\n]+)/gi;
+    const phases = [];
+    let match;
+
+    const chunks = raw.split(/\n\n+/);
+    const weekRe = /^(Week[\s\d\-–]+|Phase\s*\d+|Discovery|Development|Testing|Launch|Support|Design|Planning|Delivery|Kickoff|Completion)/i;
+
+    chunks.forEach(chunk => {
+      const firstLine = chunk.split('\n')[0].trim();
+      if (weekRe.test(firstLine)) {
+        const rest = chunk.split('\n').slice(1).join(' ').trim();
+        const weekMatch = firstLine.match(/Week\s*([\d\s\-–]+)/i);
+        phases.push({
+          range: weekMatch ? `Week ${weekMatch[1].trim()}` : '',
+          name: firstLine.replace(/^Week[\s\d\-–:]+/i, '').replace(/^Phase\s*\d+[:\s]*/i, '').trim() || firstLine,
+          desc: rest,
+        });
+      }
+    });
+
+    if (phases.length >= 2) {
+      const grid = document.createElement('div');
+      grid.className = 'timeline-grid';
+      phases.forEach((ph, i) => {
+        const card = document.createElement('div');
+        card.className = 'timeline-card';
+        card.innerHTML = `
+          <div class="timeline-phase-num">${i + 1}</div>
+          <div class="timeline-phase-name">${esc(ph.name)}</div>
+          ${ph.range ? `<div class="timeline-phase-range">${esc(ph.range)}</div>` : ''}
+          <div class="timeline-phase-desc">${esc(ph.desc.slice(0, 140))}${ph.desc.length > 140 ? '…' : ''}</div>
+        `;
+        grid.appendChild(card);
+      });
+      return grid;
+    }
+
+    return renderText(raw);
+  }
+
+  function renderSignatureBlock(raw) {
+    const div = document.createElement('div');
+    const intro = raw.split('Prepared by:')[0].trim();
+    if (intro) {
+      const p = document.createElement('p');
+      p.textContent = intro;
+      p.style.marginBottom = '16px';
+      div.appendChild(p);
+    }
+
+    const grid = document.createElement('div');
+    grid.className = 'sig-grid';
+
+    const providerCol = document.createElement('div');
+    providerCol.className = 'sig-col';
+    providerCol.innerHTML = `
+      <div class="sig-col-label">Service Provider</div>
+      <div class="sig-line">Name</div>
+      <div class="sig-line">Title</div>
+      <div class="sig-line">Signature</div>
+      <div class="sig-line">Date</div>
+    `;
+
+    const clientCol = document.createElement('div');
+    clientCol.className = 'sig-col';
+    const clientLabel = currentProposal?.client_name
+      ? `Client — ${currentProposal.client_name}`
+      : 'Client';
+    clientCol.innerHTML = `
+      <div class="sig-col-label">${esc(clientLabel)}</div>
+      <div class="sig-line">Name</div>
+      <div class="sig-line">Title</div>
+      <div class="sig-line">Organisation</div>
+      <div class="sig-line">Signature</div>
+      <div class="sig-line">Date</div>
+    `;
+
+    grid.appendChild(providerCol);
+    grid.appendChild(clientCol);
+    div.appendChild(grid);
+    return div;
+  }
+
+  /* ── View from history ───────────────────────────────────── */
+  async function viewProposal(id) {
+    try {
+      const res = await fetch(`${API}/api/proposals/${id}`, { headers: getHeaders(false) });
+      if (!res.ok) throw new Error();
+      renderProposal(await res.json());
+    } catch {
+      showError('Could not load proposal.');
+    }
+  }
+
+  /* ── Downloads ───────────────────────────────────────────── */
+  async function handleDownload(format) {
+    if (!currentId) return;
+    const btn = format === 'pdf' ? document.getElementById('pdfBtn') : document.getElementById('wordBtn');
+    btn.disabled = true;
+    btn.classList.add('loading');
+
+    try {
+      const res = await fetch(`${API}/api/proposals/${currentId}/download/${format}`, {
+        headers: getHeaders(false),
+      });
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `proposal-${currentId.slice(0, 8)}.${format === 'pdf' ? 'pdf' : 'docx'}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      showError(e.message);
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    }
+  }
+
+
+
+  function parsePricingHtml(html) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+
+    const intro = tmp.querySelector('.pricing-intro')?.textContent?.trim() || '';
+    const note  = tmp.querySelector('.pricing-note')?.textContent?.trim()  || '';
+
+    function parseTable(table) {
+      if (!table) return [];
+      return Array.from(table.querySelectorAll('tbody tr')).map(tr =>
+        Array.from(tr.querySelectorAll('td')).map(td => td.textContent.trim())
+      );
+    }
+
+    const tables = tmp.querySelectorAll('table');
+    const costRows    = parseTable(tables[0]);
+    const schedRows   = parseTable(tables[1]);
+
+    const totalCell = tables[0]?.querySelector('tfoot .total-row td:last-child');
+    const total = totalCell?.textContent?.trim() || '';
+
+    return { intro, note, costRows, schedRows, total };
+  }
+
+  function buildPricingEditor(html) {
+    const d = parsePricingHtml(html);
+    const wrap = document.createElement('div');
+    wrap.className = 'pricing-editor';
+
+    const introLabel = document.createElement('div');
+    introLabel.className = 'pricing-editor-label';
+    introLabel.textContent = 'Introduction paragraph';
+    const introTa = document.createElement('textarea');
+    introTa.className = 'pricing-editor-intro';
+    introTa.dataset.role = 'intro';
+    introTa.value = d.intro;
+    introTa.rows = 3;
+    wrap.appendChild(introLabel);
+    wrap.appendChild(introTa);
+
+    const costLabel = document.createElement('div');
+    costLabel.className = 'pricing-editor-label';
+    costLabel.style.marginTop = '4px';
+    costLabel.textContent = 'Cost Breakdown';
+    wrap.appendChild(costLabel);
+
+    const costWrap = document.createElement('div');
+    costWrap.className = 'pricing-tbl-wrap';
+    const costTable = document.createElement('table');
+    costTable.className = 'pricing-edit-table';
+    costTable.dataset.role = 'cost';
+    costTable.innerHTML = `<thead><tr>
+      <th>Item</th><th>Description</th><th style="width:48px">Qty</th>
+      <th style="width:110px">Unit Price</th><th style="width:110px">Subtotal</th><th style="width:32px"></th>
+    </tr></thead><tbody></tbody>
+    <tfoot><tr class="total-row">
+      <td colspan="4" class="td-total-label">Total Investment</td>
+      <td><input class="tbl-cell-input num" data-role="grand-total" value="${escAttr(d.total)}" placeholder="0"></td>
+    </tr></tfoot>`;
+
+    const costTbody = costTable.querySelector('tbody');
+    const defaultCostRow = ['', '', '1', '', ''];
+    (d.costRows.length ? d.costRows : [defaultCostRow]).forEach(row => {
+      costTbody.appendChild(makeCostRow(row));
+    });
+    costWrap.appendChild(costTable);
+    wrap.appendChild(costWrap);
+
+    const addCostBtn = document.createElement('button');
+    addCostBtn.type = 'button';
+    addCostBtn.className = 'btn-add-row';
+    addCostBtn.innerHTML = '+ Add line item';
+    addCostBtn.onclick = () => {
+      costTbody.appendChild(makeCostRow(['', '', '1', '', '']));
+    };
+    wrap.appendChild(addCostBtn);
+
+    const schedLabel = document.createElement('div');
+    schedLabel.className = 'pricing-editor-label';
+    schedLabel.style.marginTop = '4px';
+    schedLabel.textContent = 'Payment Schedule';
+    wrap.appendChild(schedLabel);
+
+    const schedWrap = document.createElement('div');
+    schedWrap.className = 'pricing-tbl-wrap';
+    const schedTable = document.createElement('table');
+    schedTable.className = 'pricing-edit-table';
+    schedTable.dataset.role = 'schedule';
+    schedTable.innerHTML = `<thead><tr>
+      <th>Payment</th><th>Amount</th><th>Due</th><th>Trigger</th><th style="width:32px"></th>
+    </tr></thead><tbody></tbody>`;
+
+    const schedTbody = schedTable.querySelector('tbody');
+    const defaultSchedRow = ['', '', '', ''];
+    (d.schedRows.length ? d.schedRows : [defaultSchedRow]).forEach(row => {
+      schedTbody.appendChild(makeSchedRow(row));
+    });
+    schedWrap.appendChild(schedTable);
+    wrap.appendChild(schedWrap);
+
+    const addSchedBtn = document.createElement('button');
+    addSchedBtn.type = 'button';
+    addSchedBtn.className = 'btn-add-row';
+    addSchedBtn.innerHTML = '+ Add payment';
+    addSchedBtn.onclick = () => {
+      schedTbody.appendChild(makeSchedRow(['', '', '', '']));
+    };
+    wrap.appendChild(addSchedBtn);
+
+    const noteLabel = document.createElement('div');
+    noteLabel.className = 'pricing-editor-label';
+    noteLabel.style.marginTop = '4px';
+    noteLabel.textContent = 'Pricing note';
+    const noteTa = document.createElement('textarea');
+    noteTa.className = 'pricing-editor-note';
+    noteTa.dataset.role = 'note';
+    noteTa.value = d.note;
+    noteTa.rows = 2;
+    wrap.appendChild(noteLabel);
+    wrap.appendChild(noteTa);
+
+    return wrap;
+  }
+
+  function makeCostRow(cells) {
+    const tr = document.createElement('tr');
+    const [item='', desc='', qty='1', unitPrice='', subtotal=''] = cells;
+    tr.innerHTML = `
+      <td><input class="tbl-cell-input" data-col="item" value="${escAttr(item)}" placeholder="e.g. Web Development"></td>
+      <td><input class="tbl-cell-input" data-col="desc" value="${escAttr(desc)}" placeholder="Description"></td>
+      <td><input class="tbl-cell-input num" data-col="qty" value="${escAttr(qty)}" placeholder="1" style="width:44px"></td>
+      <td><input class="tbl-cell-input num" data-col="unit" value="${escAttr(unitPrice)}" placeholder="0"></td>
+      <td><input class="tbl-cell-input num" data-col="sub" value="${escAttr(subtotal)}" placeholder="0"></td>
+      <td><button type="button" class="btn-del-row" title="Remove row" onclick="this.closest('tr').remove()">✕</button></td>
+    `;
+    return tr;
+  }
+
+  function makeSchedRow(cells) {
+    const tr = document.createElement('tr');
+    const [payment='', amount='', due='', trigger=''] = cells;
+    tr.innerHTML = `
+      <td><input class="tbl-cell-input" data-col="payment" value="${escAttr(payment)}" placeholder="e.g. Deposit"></td>
+      <td><input class="tbl-cell-input num" data-col="amount" value="${escAttr(amount)}" placeholder="0"></td>
+      <td><input class="tbl-cell-input" data-col="due" value="${escAttr(due)}" placeholder="e.g. Upon signing"></td>
+      <td><input class="tbl-cell-input" data-col="trigger" value="${escAttr(trigger)}" placeholder="e.g. Project kickoff"></td>
+      <td><button type="button" class="btn-del-row" title="Remove row" onclick="this.closest('tr').remove()">✕</button></td>
+    `;
+    return tr;
+  }
+
+  function escAttr(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function serialisePricingEditor(editorEl) {
+    const intro = editorEl.querySelector('[data-role="intro"]')?.value || '';
+    const note  = editorEl.querySelector('[data-role="note"]')?.value  || '';
+    const total = editorEl.querySelector('[data-role="grand-total"]')?.value || '';
+
+    const costRows = Array.from(editorEl.querySelector('[data-role="cost"] tbody').querySelectorAll('tr'))
+      .map(tr => ({
+        item:  tr.querySelector('[data-col="item"]')?.value  || '',
+        desc:  tr.querySelector('[data-col="desc"]')?.value  || '',
+        qty:   tr.querySelector('[data-col="qty"]')?.value   || '1',
+        unit:  tr.querySelector('[data-col="unit"]')?.value  || '',
+        sub:   tr.querySelector('[data-col="sub"]')?.value   || '',
+      }))
+      .filter(r => r.item || r.desc);
+
+    const schedRows = Array.from(editorEl.querySelector('[data-role="schedule"] tbody').querySelectorAll('tr'))
+      .map(tr => ({
+        payment: tr.querySelector('[data-col="payment"]')?.value || '',
+        amount:  tr.querySelector('[data-col="amount"]')?.value  || '',
+        due:     tr.querySelector('[data-col="due"]')?.value     || '',
+        trigger: tr.querySelector('[data-col="trigger"]')?.value || '',
+      }))
+      .filter(r => r.payment || r.amount);
+
+    const costRowsHtml = costRows.map(r =>
+      `<tr><td>${r.item}</td><td>${r.desc}</td><td>${r.qty}</td><td>${r.unit}</td><td>${r.sub}</td></tr>`
+    ).join('');
+
+    const schedRowsHtml = schedRows.map(r =>
+      `<tr><td>${r.payment}</td><td>${r.amount}</td><td>${r.due}</td><td>${r.trigger}</td></tr>`
+    ).join('');
+
+    return `<div class='pricing-section'><p class='pricing-intro'>${intro}</p>` +
+      `<h4>Cost Breakdown</h4>` +
+      `<table class='pricing-table'><thead><tr><th>Item</th><th>Description</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th></tr></thead>` +
+      `<tbody>${costRowsHtml}</tbody>` +
+      `<tfoot><tr class='total-row'><td colspan='4'>Total Investment</td><td>${total}</td></tr></tfoot></table>` +
+      `<h4>Payment Schedule</h4>` +
+      `<table class='pricing-table'><thead><tr><th>Payment</th><th>Amount</th><th>Due</th><th>Trigger</th></tr></thead>` +
+      `<tbody>${schedRowsHtml}</tbody></table>` +
+      `<p class='pricing-note'>${note}</p></div>`;
+  }
+
+  function enterEditMode() {
+    if (!currentId) return;
+    editSnapshot = { title: document.getElementById('docTitle').textContent };
+
+    document.getElementById('editBtn').style.display = 'none';
+    document.getElementById('pdfBtn').disabled = true;
+    document.getElementById('wordBtn').disabled = true;
+
+    const titleEl = document.getElementById('docTitle');
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'edit-title-input';
+    input.id = 'editTitleInput';
+    input.value = titleEl.textContent;
+    titleEl.replaceWith(input);
+
+    const docHeader = document.querySelector('.doc-header');
+    const bar = document.createElement('div');
+    bar.className = 'edit-bar';
+    bar.id = 'editBar';
+    bar.innerHTML = `
+      <span class="edit-notice">✎ EDITING MODE — changes will be saved</span>
+      <button class="btn-cancel-edit" onclick="cancelEdit()">Cancel</button>
+      <button class="btn-save-edit" id="saveEditBtn" onclick="saveEdit()">
+        <span id="saveSpinner" style="display:none;width:10px;height:10px;border:1.5px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;"></span>
+        Save & Close
+      </button>
+    `;
+    document.getElementById('docBody').before(bar);
+
+    SECTIONS.forEach(sec => {
+      const block = document.querySelector(`[data-section="${sec.key}"]`);
+      if (!block) return;
+      const contentEl = block.querySelector('.section-content');
+      const raw = rawSectionData[sec.key] || '';
+
+      contentEl.innerHTML = '';
+
+      if (sec.isHtml) {
+        const decoded = (() => {
+          const t = document.createElement('textarea');
+          t.innerHTML = raw;
+          return t.value;
+        })();
+        const editorEl = buildPricingEditor(decoded);
+        editorEl.id = `edit-${sec.key}`;
+        contentEl.appendChild(editorEl);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.className = 'section-textarea';
+        ta.id = `edit-${sec.key}`;
+        ta.value = raw;
+        ta.rows = 6;
+        contentEl.appendChild(ta);
+      }
+    });
+  }
+
+  function cancelEdit() {
+    const input = document.getElementById('editTitleInput');
+    if (input) {
+      const div = document.createElement('div');
+      div.className = 'doc-title';
+      div.id = 'docTitle';
+      div.textContent = editSnapshot.title;
+      input.replaceWith(div);
+    }
+    document.getElementById('editBar')?.remove();
+    document.getElementById('editBtn').style.display = '';
+    document.getElementById('pdfBtn').disabled = false;
+    document.getElementById('wordBtn').disabled = false;
+
+    renderProposal(currentProposal);
+    editSnapshot = null;
+  }
+
+  async function saveEdit() {
+    if (!currentId) return;
+    const saveBtn = document.getElementById('saveEditBtn');
+    saveBtn.disabled = true;
+    document.getElementById('saveSpinner').style.display = 'inline-block';
+
+    const newTitle = document.getElementById('editTitleInput')?.value?.trim();
+    const contentUpdate = {};
+    SECTIONS.forEach(sec => {
+      const el = document.getElementById(`edit-${sec.key}`);
+      if (!el) return;
+      contentUpdate[sec.key] = sec.isHtml ? serialisePricingEditor(el) : el.value;
+    });
+
+    try {
+      const res = await fetch(`${API}/api/proposals/${currentId}`, {
+        method: 'PATCH',
+        headers: getHeaders(),
+        body: JSON.stringify({ title: newTitle, content: contentUpdate }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Save failed (${res.status})`);
+      }
+      const data = await res.json();
+      editSnapshot = null;
+
+      const titleInput = document.getElementById('editTitleInput');
+      if (titleInput) {
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'doc-title';
+        titleDiv.id = 'docTitle';
+        titleDiv.textContent = '';   // renderProposal will fill this
+        titleInput.replaceWith(titleDiv);
+      }
+
+      document.getElementById('editBar')?.remove();
+      document.getElementById('editBtn').style.display = '';
+      document.getElementById('pdfBtn').disabled = false;
+      document.getElementById('wordBtn').disabled = false;
+      renderProposal(data);
+      loadHistory(currentPage);
+    } catch (e) {
+      const bar = document.getElementById('editBar');
+      if (bar) {
+        let errSpan = bar.querySelector('.edit-error');
+        if (!errSpan) {
+          errSpan = document.createElement('span');
+          errSpan.className = 'edit-error';
+          errSpan.style.cssText = 'color:#dc2626;font-size:12px;font-family:var(--mono);margin-right:8px;';
+          bar.insertBefore(errSpan, bar.querySelector('.btn-cancel-edit'));
+        }
+        errSpan.textContent = '⚠ ' + e.message;
+      } else {
+        showError(e.message);
+      }
+      saveBtn.disabled = false;
+      document.getElementById('saveSpinner').style.display = 'none';
+    }
+  }
+
+  /* ── Delete ──────────────────────────────────────────────── */
+  async function deleteProposal(id) {
+    if (!confirm('Delete this proposal permanently?')) return;
+    try {
+      const res = await fetch(`${API}/api/proposals/${id}`, {
+        method: 'DELETE',
+        headers: getHeaders(false),
+      });
+      if (!res.ok) throw new Error('Delete failed');
+      if (currentId === id) {
+        currentId = null;
+        currentProposal = null;
+        document.getElementById('resultSection').style.display = 'none';
+        document.getElementById('emptyState').style.display = 'block';
+      }
+      loadHistory(currentPage);
+    } catch (e) {
+      showError(e.message);
+    }
+  }
+
+  /* ── History ─────────────────────────────────────────────── */
+  async function loadHistory(page) {
+    currentPage = page;
+    try {
+      const res = await fetch(`${API}/api/proposals/?page=${page}&limit=${PAGE_SIZE}`, {
+        headers: getHeaders(false),
+      });
+      if (!res.ok) throw new Error();
+      renderHistory(await res.json());
+    } catch {
+      document.getElementById('proposalsList').innerHTML =
+        '<tr><td colspan="3" class="empty-table">Could not load proposals.</td></tr>';
+    }
+  }
+
+  function renderHistory({ total, proposals, page, limit }) {
+    const tbody = document.getElementById('proposalsList');
+
+    if (!proposals.length) {
+      tbody.innerHTML = '<tr><td colspan="3" class="empty-table">No proposals yet. Generate your first one above.</td></tr>';
+      document.getElementById('pagination').innerHTML = '';
+      return;
+    }
+
+    tbody.innerHTML = proposals.map(p => `
+      <tr>
+        <td>
+          <div class="td-proposal-title">${esc(p.title)}</div>
+          <div class="td-proposal-date">Generated ${timeAgo(p.created_at)}</div>
+        </td>
+        <td><span class="td-value">${esc(p.total_value || '—')}</span></td>
+        <td>
+          <div class="td-actions">
+            <button class="btn-tbl" onclick="viewProposal('${p.id}')">View</button>
+            <button class="btn-tbl word" onclick="downloadHistItem('${p.id}','docx')">Word</button>
+            <button class="btn-tbl pdf" onclick="downloadHistItem('${p.id}','pdf')">PDF</button>
+            <button class="btn-tbl icon" onclick="deleteProposal('${p.id}')" title="Delete">🗑</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+
+    const totalPages = Math.ceil(total / limit);
+    const pag = document.getElementById('pagination');
+    if (totalPages <= 1) { pag.innerHTML = ''; return; }
+    pag.innerHTML = `
+      <button class="btn-page" onclick="loadHistory(${page - 1})" ${page <= 1 ? 'disabled' : ''}>← Prev</button>
+      ${Array.from({ length: totalPages }, (_, i) => i + 1)
+        .map(n => `<button class="btn-page ${n === page ? 'active' : ''}" onclick="loadHistory(${n})">${n}</button>`)
+        .join('')}
+      <button class="btn-page" onclick="loadHistory(${page + 1})" ${page >= totalPages ? 'disabled' : ''}>Next →</button>
+    `;
+  }
+
+  async function downloadHistItem(id, format) {
+    try {
+      const res = await fetch(`${API}/api/proposals/${id}/download/${format}`, {
+        headers: getHeaders(false),
+      });
+      if (!res.ok) throw new Error(`Download failed`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `proposal-${id.slice(0, 8)}.${format === 'pdf' ? 'pdf' : 'docx'}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      showError(e.message);
+    }
+  }
+
+  /* ── New proposal (clear form) ───────────────────────────── */
+  function newProposal() {
+    document.getElementById('promptInput').value = '';
+    document.getElementById('clientName').value = '';
+    document.getElementById('budgetInput').value = '';
+    hideError();
+    document.getElementById('resultSection').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* ── Utilities ───────────────────────────────────────────── */
+  function showError(msg) {
+    const bar = document.getElementById('errorBar');
+    bar.textContent = msg;
+    bar.style.display = 'block';
+  }
+  function hideError() {
+    document.getElementById('errorBar').style.display = 'none';
+  }
+
+  function esc(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function fmtDate(d) {
+    return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+
+  function timeAgo(iso) {
+    const diff = Math.floor((Date.now() - new Date(iso)) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    if (diff < 604800) return `${Math.floor(diff / 86400)} days ago`;
+    return fmtDate(iso);
+  }
+
+  /* ── Init ────────────────────────────────────────────────── */
+  loadHistory(1);
+</script>
+</body>
+</html>

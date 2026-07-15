@@ -1,0 +1,15 @@
+fastapi==0.115.11
+uvicorn[standard]==0.34.0
+sqlalchemy==2.0.38
+alembic==1.18.4
+psycopg2-binary==2.9.10
+redis==5.2.1
+python-jose[cryptography]==3.3.0
+python-dotenv==1.0.1
+pydantic-settings==2.14.1
+groq==1.2.0
+python-pptx==1.0.2
+aiofiles==24.1.0
+httpx==0.28.1
+python-multipart==0.0.20
+requests==2.32.3

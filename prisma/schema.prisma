@@ -1,0 +1,309 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  // output   = "../generated/prisma"
+}
+
+// prisma/schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  password         String
+  firstname        String
+  lastname         String
+  organization     String?
+  role             UserRole? // 👈 Uses enum now!
+  isVerified       Boolean   @default(false)
+  agreedToTerms    Boolean   @default(false)
+  subscribedToNews Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  otps                 Otp[]
+  refreshTokens        RefreshToken[]
+  verificationSessions VerificationSession[]
+  mentorChats          MentorChat[]
+  businessPlans        BusinessPlan[]
+
+  brandAssets BrandAsset[]
+    chatSessions         ChatSession[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  STUDENT
+  PROFESSIONAL
+  ENGINEER
+  ADMIN
+  OTHER
+}
+
+model Otp {
+  id        String   @id @default(uuid())
+  code      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  useCase   UseCase
+
+  createdAt DateTime @default(now())
+
+  @@map("otps")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+model VerificationSession {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+
+  @@map("verification_sessions")
+}
+
+enum UseCase {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
+model NewsletterSubscription {
+  id        String  @id @default(uuid())
+  firstName String
+  email     String  @unique
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@map("newsletter_subscriptions")
+}
+
+model PartnerRequest {
+  id               String  @id @default(uuid())
+  fullName         String
+  organizationName String
+  email            String
+  message          String
+  wantsSponsorship Boolean @default(false)
+
+  status PartnerRequestStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("partner_requests")
+}
+
+enum PartnerRequestStatus {
+  PENDING
+  REVIEWED
+  APPROVED
+  REJECTED
+}
+
+model ContactMessage {
+  id               String  @id @default(uuid())
+  fullName         String
+  email            String
+  subject          String
+  message          String
+  wantsPartnership Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("contact_messages")
+}
+
+model MentorChat {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages MentorMessage[]
+
+  @@map("mentor_chats")
+}
+
+model MentorMessage {
+  id     String     @id @default(uuid())
+  chatId String
+  chat   MentorChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  role    MentorMessageRole
+  content String
+
+  createdAt DateTime @default(now())
+
+  @@map("mentor_messages")
+}
+
+enum MentorMessageRole {
+  USER
+  ASSISTANT
+}
+
+model BusinessPlan {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  businessIdea    String
+  industry        String
+  targetAudience  String
+  skills          String
+  budget          String
+  location        String
+  experienceLevel String
+  goal            String
+
+  aiResponse Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("business_plans")
+}
+
+enum BrandAssetType {
+  LOGO
+  BUSINESS_CARD
+  LETTERHEAD
+  EMAIL_SIGNATURE
+  INVOICE
+  QUOTATION
+  COMPANY_PROFILE
+  CAPABILITY_STATEMENT
+  BRAND_GUIDELINES
+}
+
+enum BrandAssetStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+model BrandAsset {
+  id String @id @default(uuid())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  externalAssetId String? @unique
+  jobId           String?
+
+  assetType BrandAssetType
+  status    BrandAssetStatus @default(PENDING)
+
+  version       Int     @default(1)
+  parentAssetId String?
+
+  inputsSnapshot Json
+  aiContent      Json?
+  rawResponse    Json?
+
+  pdfUrl            String?
+  docxUrl           String?
+  pngUrl            String?
+  svgLightUrl       String?
+  svgDarkUrl        String?
+  pngTransparentUrl String?
+
+  errorMessage String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([assetType])
+  @@index([status])
+  @@map("brand_assets")
+}
+
+
+model ChatSession {
+  id String @id @default(uuid())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  visitorType ChatVisitorType @default(UNKNOWN)
+  status      ChatSessionStatus @default(OPEN)
+
+  title String?
+
+  messages ChatMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([visitorType])
+  @@index([status])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id String @id @default(uuid())
+
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  sender  ChatSender
+  content String
+
+  aiStatus   String?
+  aiRawReply Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+  @@map("chat_messages")
+}
+
+enum ChatVisitorType {
+  STUDENT
+  MENTOR
+  PARTNER
+  UNKNOWN
+}
+
+enum ChatSessionStatus {
+  OPEN
+  CLOSED
+  ESCALATED
+}
+
+enum ChatSender {
+  USER
+  BOT
+}
