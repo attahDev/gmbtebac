@@ -37,7 +37,7 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
             from: configService.get<string>('MAIL_FROM'),
           },
           template: {
-            dir: join(process.cwd(), 'src', 'mail', 'templates'),
+            dir: join(__dirname, '..', 'mail', 'templates'),
             adapter: new HandlebarsAdapter(),
             options: {
               strict: true,
