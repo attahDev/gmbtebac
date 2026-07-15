@@ -23,7 +23,7 @@ const SUPER_USER = {
   firstname: 'Super',
   lastname: 'Admin',
   organization: 'GMBT',
-  role: UserRole.ADMIN,
+  role: UserRole.ENGINEER,
 };
 
 async function main() {
