@@ -39,6 +39,12 @@ model User {
   brandAssets BrandAsset[]
     chatSessions         ChatSession[]
 
+  mentorConnections MentorConnection[]
+  courseProgress    CourseProgress[]
+  eventAttendance   EventAttendance[]
+  userBadges        UserBadge[]
+  activityLogs      ActivityLog[]
+
   @@map("users")
 }
 
@@ -306,4 +312,198 @@ enum ChatSessionStatus {
 enum ChatSender {
   USER
   BOT
+}
+// ---------------------------------------------------------------------------
+// Engagement models — mentors, opportunities, courses, events, badges,
+// activity feed, community spotlight. Added to back the Student Dashboard,
+// which previously rendered hardcoded numbers with no backing data.
+// ---------------------------------------------------------------------------
+
+model Mentor {
+  id        String  @id @default(uuid())
+  name      String
+  role      String
+  company   String?
+  avatarUrl String?
+  bio       String?
+  skills    String[]
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  connections MentorConnection[]
+
+  @@index([isActive])
+  @@map("mentors")
+}
+
+enum MentorConnectionStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  DECLINED
+}
+
+model MentorConnection {
+  id       String @id @default(uuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mentorId String
+  mentor   Mentor @relation(fields: [mentorId], references: [id], onDelete: Cascade)
+
+  status            MentorConnectionStatus @default(PENDING)
+  sessionsCompleted Int                    @default(0)
+  nextSessionAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, mentorId])
+  @@index([userId])
+  @@map("mentor_connections")
+}
+
+model Opportunity {
+  id       String    @id @default(uuid())
+  title    String
+  company  String
+  location String?
+  type     String?
+  url      String?
+  postedAt DateTime  @default(now())
+  isActive Boolean   @default(true)
+
+  @@index([isActive])
+  @@map("opportunities")
+}
+
+model Course {
+  id           String  @id @default(uuid())
+  title        String
+  description  String?
+  category     String?
+  totalModules Int     @default(1)
+  isActive     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  progress CourseProgress[]
+
+  @@index([isActive])
+  @@map("courses")
+}
+
+model CourseProgress {
+  id       String @id @default(uuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  completedModules Int     @default(0)
+  isCompleted      Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, courseId])
+  @@index([userId])
+  @@map("course_progress")
+}
+
+model Event {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  location    String?
+  startsAt    DateTime
+  endsAt      DateTime?
+  isActive    Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+
+  attendees EventAttendance[]
+
+  @@index([isActive])
+  @@index([startsAt])
+  @@map("events")
+}
+
+model EventAttendance {
+  id      String @id @default(uuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  status String @default("REGISTERED")
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, eventId])
+  @@index([userId])
+  @@map("event_attendance")
+}
+
+model Badge {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  icon        String?
+
+  createdAt DateTime @default(now())
+
+  users UserBadge[]
+
+  @@map("badges")
+}
+
+model UserBadge {
+  id      String @id @default(uuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId String
+  badge   Badge  @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  earnedAt DateTime @default(now())
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@map("user_badges")
+}
+
+model ActivityLog {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    String
+  message String
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+model SpotlightStory {
+  id          String  @id @default(uuid())
+  title       String
+  description String
+  authorName  String
+  authorRole  String
+  avatarColor String? @default("bg-red-600")
+  imageUrl    String?
+  likes       Int     @default(0)
+  comments    Int     @default(0)
+  isPublished Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([isPublished])
+  @@map("spotlight_stories")
 }
