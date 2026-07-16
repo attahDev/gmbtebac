@@ -75,7 +75,90 @@ async function main() {
   console.log('  ⚠️  Change the password before deploying to production!');
 }
 
+/**
+ * Catalogue seed data below. Unlike the mock arrays that used to live in the
+ * frontend, this is legitimate to seed: mentors/courses/events/spotlight
+ * stories are admin-curated *catalogue* content (like products in a store),
+ * not fabricated per-user activity. A user's own stats (sessions completed,
+ * badges earned, activity feed) are NEVER seeded — those only exist once a
+ * real user does something, and start at 0/empty otherwise.
+ */
+async function seedCatalogue() {
+  console.log('🌱 Seeding mentor/course/event/spotlight catalogue...');
+
+  await prisma.mentor.createMany({
+    skipDuplicates: true,
+    data: [
+      {
+        name: 'Sophia Turner',
+        role: 'Software Engineer, Google',
+        company: 'Google',
+        avatarUrl: null,
+        bio: 'Helping students navigate the world of software engineering and career growth.',
+        skills: ['Career Growth', 'UX Design', 'Leadership'],
+      },
+      {
+        name: 'Victor Marcus',
+        role: 'Product Designer, Code Nation',
+        company: 'Code Nation',
+        avatarUrl: null,
+        bio: 'Full-stack and cloud architecture mentor focused on practical, hands-on guidance.',
+        skills: ['Full Stack', 'Cloud Architecture', 'Mentoring'],
+      },
+      {
+        name: 'James Ade',
+        role: 'Software Engineer, Google',
+        company: 'Google',
+        avatarUrl: null,
+        bio: 'Passionate about bridging creativity and real-world design for impactful products.',
+        skills: ['Career Growth', 'UX Design', 'Leadership'],
+      },
+    ],
+  });
+
+  await prisma.course.createMany({
+    skipDuplicates: true,
+    data: [
+      { title: 'Digital Marketing Strategy', category: 'Business', totalModules: 6 },
+      { title: 'Business Analytics Basics', category: 'Business', totalModules: 5 },
+      { title: 'Startup Fundamentals', category: 'Entrepreneurship', totalModules: 4 },
+      { title: 'Entrepreneurship Mindset', category: 'Entrepreneurship', totalModules: 4 },
+      { title: 'Financial Literacy for Founders', category: 'Finance', totalModules: 5 },
+      { title: 'Product Sales & Marketing Brand Development', category: 'Business', totalModules: 6 },
+    ],
+  });
+
+  const now = new Date();
+  const inTwoWeeks = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+  await prisma.event.createMany({
+    skipDuplicates: true,
+    data: [
+      {
+        title: 'AI Workshop at University of Manchester',
+        location: 'University of Manchester',
+        startsAt: inTwoWeeks,
+      },
+    ],
+  });
+
+  await prisma.spotlightStory.createMany({
+    skipDuplicates: true,
+    data: [
+      {
+        title: 'From Student to Senior Developer',
+        description:
+          "How mentorship transformed James' journey from feeling uncertain about his future to landing his dream job at a Manchester tech startup.",
+        authorName: 'James Wilson',
+        authorRole: 'Software Developer',
+      },
+    ],
+  });
+
+  console.log('✅ Catalogue seeded (mentors, courses, events, spotlight).');
+}
+
 main()
+  .then(() => seedCatalogue())
   .catch((e) => {
     console.error('❌ Seed failed:', e);
     process.exit(1);
