@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ActivityService } from '../activity/activity.service';
 import { CreateCourseDto, CreateModuleDto, UpdateCourseDto, UpdateModuleDto } from './dto/module.dto';
@@ -112,7 +113,7 @@ export class CoursesService {
 
   // ───────────────────────── Admin: upload-driven content ─────────────────────────
 
-  /** Create a course "shell" (title/description/category/metadata) with 0
+  /** Create a course "shell" (title/description/category/data) with 0
    *  modules — totalModules rises automatically as modules get uploaded. */
   async createCourse(dto: CreateCourseDto) {
     const slug = await this.uniqueCourseSlug(dto.title);
@@ -122,7 +123,7 @@ export class CoursesService {
         title: dto.title,
         description: dto.description,
         category: dto.category,
-        metadata: dto.metadata ?? undefined,
+        metadata: (dto.metadata as Prisma.InputJsonValue) ?? undefined,
         totalModules: 0,
       },
     });
@@ -135,7 +136,7 @@ export class CoursesService {
       data: {
         ...(dto.title !== undefined ? { title: dto.title } : {}),
         ...(dto.description !== undefined ? { description: dto.description } : {}),
-        ...(dto.metadata !== undefined ? { metadata: dto.metadata } : {}),
+        ...(dto.metadata !== undefined ? { metadata: dto.metadata as Prisma.InputJsonValue } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
       },
     });
