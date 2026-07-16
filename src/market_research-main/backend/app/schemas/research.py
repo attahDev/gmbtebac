@@ -12,12 +12,6 @@ PeriodType = Literal["1d", "7d", "30d", "1y", "5y"]
 SentimentLabel = Literal["positive", "negative", "neutral"]
 
 
-class CreditsBlock(BaseModel):
-    """Returned on every job-creation response so the frontend can update the credit counter."""
-    reserved_this_call: int
-    remaining_balance: Optional[int] = None
-    source: str   # 'cache' or 'fresh' — determines which cost was applied
-
 
 class FinalRecommendation(BaseModel):
     action: str       

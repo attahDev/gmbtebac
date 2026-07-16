@@ -12,11 +12,8 @@ class Settings(BaseSettings):
     UNSPLASH_ACCESS_KEY: str = ""
     ENVIRONMENT: str = ""
     ALLOWED_ORIGINS: List[str] = []
-    CREDITS_DATABASE_URL: str = ""
     RATE_LIMIT_PER_MINUTE: int = 3
     RATE_LIMIT_PER_HOUR: int = 20
-    PITCH_DECK_CREDIT_COST: int = 1
-    ENTITLED_PLANS: List[str] = ["founder_workspace", "founder_pro", "team", "enterprise"]
 
     class Config:
         env_file = ".env"

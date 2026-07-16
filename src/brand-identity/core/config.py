@@ -12,11 +12,6 @@ class Settings(BaseSettings):
     # This service's own Postgres DB (proposals/assets table only)
     DATABASE_URL: str
 
-    # The main GMBTE platform DB — used only for credit reserve/commit/refund.
-    # Isolated in core/credits_db.py + services/credits_service.py so it's a
-    # small change once the real schema is confirmed, not a rewrite.
-    CREDITS_DATABASE_URL: str = ""
-
     REDIS_URL: str = "redis://redis:6379/0"
 
     JWT_SECRET: str
@@ -43,11 +38,6 @@ class Settings(BaseSettings):
     # Rate limiting (per user_id, fixed window)
     RATE_LIMIT_PER_MINUTE: int = 5
     RATE_LIMIT_PER_HOUR: int = 20
-
-    # Credit cost per brand-identity generation.
-    # Per the commercial framework, Brand Identity is a Founder Workspace+
-    # feature. Cost TBC against real schema — placeholder matches Proposal Builder.
-    BRAND_IDENTITY_CREDIT_COST: int = 100
 
     class Config:
         env_file = ".env"

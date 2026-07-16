@@ -40,7 +40,6 @@ class Settings(BaseSettings):
     rate_limit_per_minute: int = 10
     rate_limit_per_hour: int = 100
     bypass_rate_limits: bool = True
-    credits_database_url: str = ""
 
     def get_cache_ttl(self, category: str) -> int:
         return {
@@ -60,14 +59,3 @@ def get_settings() -> Settings:
 settings = get_settings()
 
 SERVICE_NAME = "market_research"
-
-ENTITLED_PLANS: set[str] = {"founder_workspace", "founder_pro", "team"}
-CREDIT_COST_FRESH: int = 2
-CREDIT_COST_CACHE: int = 1
-PLAN_BURST_LIMITS_PER_MINUTE: dict[str, int] = {
-    "explorer":          5,
-    "student":           5,
-    "founder_workspace": 10,
-    "founder_pro":       20,
-    "team":              30,
-}

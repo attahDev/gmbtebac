@@ -14,14 +14,13 @@ from app.core.cache import (
 )
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, get_db
-from app.models.research import ResearchJob, ResearchJobParticipant, ResearchResult
+from app.models.research import ResearchJob, ResearchResult
 from app.schemas.research import (
     AnalystRatingsData, ChartData, ClassificationResult,
-    CreditsBlock, EnrichmentPanel, ErrorDetail, FinalRecommendation,
+    EnrichmentPanel, ErrorDetail, FinalRecommendation,
     FundamentalsData, MetricCards, NewsSentimentData,
     OnChainData, ResearchRequest, ResultData,
 )
-from app.services import credits_service
 from app.services.aggregator import aggregate
 from app.services.classifier import classify_query, normalize_query
 from app.services.job_utils import increment_retry_count, update_job_status
@@ -112,55 +111,6 @@ def _shape_response(raw_data: Optional[dict], category: str):
     return metrics, charts, enrichments
 
 
-def _credits_block(reservation_status: Optional[dict], cost: int) -> Optional[dict]:
-    if reservation_status is None:
-        return None
-    return CreditsBlock(
-        used_this_call=cost,
-        monthly_remaining=reservation_status["balance"],
-        bonus_remaining=0, 
-        total_remaining=reservation_status["balance"],
-    ).model_dump()
-
-
-async def _add_participant(
-    db: AsyncSession, job_id: uuid.UUID, user_id: str, reference_id: str, cost: int, role: str
-) -> None:
-    db.add(ResearchJobParticipant(
-        job_id=job_id,
-        user_id=uuid.UUID(user_id),
-        reference_id=reference_id,
-        cost=cost,
-        role=role,
-    ))
-
-async def _settle_participants(job_id: str, outcome: str) -> None:
-    """outcome is 'commit' or 'refund'."""
-    async with AsyncSessionLocal() as db:
-        result = await db.execute(
-            select(ResearchJobParticipant).where(
-                ResearchJobParticipant.job_id == uuid.UUID(job_id),
-                ResearchJobParticipant.settled == False,  # noqa: E712
-            )
-        )
-        participants = result.scalars().all()
-
-        for p in participants:
-            try:
-                if outcome == "commit":
-                    await credits_service.commit(str(p.user_id), p.cost, p.reference_id)
-                else:
-                    await credits_service.refund(str(p.user_id), p.cost, p.reference_id)
-                p.settled = True
-            except Exception as e:
-                logger.error(
-                    f"Failed to settle participant user={p.user_id} "
-                    f"job={job_id} outcome={outcome}: {e}"
-                )
-
-        await db.commit()
-
-
 async def run_research_pipeline(job_id: str, query: str, query_normalized: str) -> None:
     start_time = time.monotonic()
     await update_job_status(job_id, "processing")
@@ -223,17 +173,11 @@ async def run_research_pipeline(job_id: str, query: str, query_normalized: str) 
             classification.category,
         )
 
-        if not settings.bypass_rate_limits:
-            await _settle_participants(job_id, outcome="commit")
-
         logger.info(f"Pipeline complete: job={job_id} ms={processing_ms}")
 
     except Exception as e:
         logger.exception(f"Pipeline failed: job={job_id}")
         await update_job_status(job_id, "failed", error=str(e))
-
-        if not settings.bypass_rate_limits:
-            await _settle_participants(job_id, outcome="refund")
 
     finally:
         await release_lock(query_normalized)
@@ -265,15 +209,6 @@ async def create_research_job(
             return _success(cached_idem, request)
 
     if not bypass:
-        if not credits_service.is_entitled(plan_tier):
-            _error(
-                "PLAN_ACCESS_DENIED",
-                f"Your current plan ({plan_tier}) does not include Research AI. "
-                "Upgrade to Founder Workspace or above.",
-                request,
-                status_code=403,
-            )
-
         is_limited, retry_after = await check_rate_limit(user_id)
         if is_limited:
             response.headers["Retry-After"] = str(retry_after)
@@ -285,32 +220,7 @@ async def create_research_job(
             )
 
     cached = await get_cached_result(query_normalized)
-    source = "cache" if cached else "fresh"
-    cost = credits_service.cost_for(source)
 
-    reservation_status = None
-    reference_id = str(uuid.uuid4())
-    if not bypass:
-        reservation_status = await credits_service.reserve(user_id, cost, reference_id)
-
-        if reservation_status["status"] == "insufficient":
-            _error(
-                "INSUFFICIENT_CREDITS",
-                f"You need {cost} credits for this request. Purchase a top-up "
-                "or wait for your monthly reset.",
-                request,
-                status_code=402,
-            )
-        if reservation_status["status"] == "error":
-            _error(
-                "CREDITS_SERVICE_UNAVAILABLE",
-                "We couldn't verify your credit balance right now. No credits were charged. "
-                "Please try again shortly.",
-                request,
-                status_code=503,
-            )
-
-    credits_block = _credits_block(reservation_status, cost)
     if cached:
         job = ResearchJob(
             query=query,
@@ -339,27 +249,16 @@ async def create_research_job(
             raw_data=cached.get("raw_data"),
         ))
 
-        if not bypass and reservation_status and reservation_status["status"] == "ok":
-            await _add_participant(db, job.id, user_id, reference_id, cost, role="original")
-
         await db.commit()
 
-        if not bypass and reservation_status and reservation_status["status"] == "ok":
-            await credits_service.commit(user_id, cost, reference_id)
-
-        response_data = {"job_id": str(job.id), "credits": credits_block}
+        response_data = {"job_id": str(job.id)}
         if idem_key:
             await set_idempotency(idem_key, response_data)
         return _success(response_data, request)
 
     existing_job_id = await get_inflight_job_id(query_normalized)
     if existing_job_id:
-        if not bypass and reservation_status and reservation_status["status"] == "ok":
-            await _add_participant(
-                db, uuid.UUID(existing_job_id), user_id, reference_id, cost, role="joined"
-            )
-            await db.commit()
-        response_data = {"job_id": existing_job_id, "credits": credits_block}
+        response_data = {"job_id": existing_job_id}
         if idem_key:
             await set_idempotency(idem_key, response_data)
         return _success(response_data, request)
@@ -374,10 +273,6 @@ async def create_research_job(
     )
     db.add(job)
     await db.flush()
-
-    if not bypass and reservation_status and reservation_status["status"] == "ok":
-        await _add_participant(db, job.id, user_id, reference_id, cost, role="original")
-
     await db.commit()
 
     job_id = str(job.id)
@@ -385,7 +280,7 @@ async def create_research_job(
 
     background_tasks.add_task(run_research_pipeline, job_id, query, query_normalized)
 
-    response_data = {"job_id": job_id, "credits": credits_block}
+    response_data = {"job_id": job_id}
     if idem_key:
         await set_idempotency(idem_key, response_data)
 

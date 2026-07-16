@@ -132,8 +132,8 @@ async def get_cached_result(query_normalized: str) -> Optional[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Idempotency helpers — catches retries/double-clicks before credits are ever
-# reserved. Kept in Redis; unrelated to the credit ledger itself.
+# Idempotency helpers — catches retries/double-clicks before a job is
+# created twice. Kept in Redis.
 # ---------------------------------------------------------------------------
 
 async def check_idempotency(key: str) -> Optional[dict]:

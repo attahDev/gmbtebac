@@ -1,7 +1,7 @@
 """
-Burst rate limiter — protects Tiingo/Tavily/Groq spend and render load
-regardless of credit balance. Fails OPEN if Redis is down: a limiter outage
-shouldn't block legitimate research requests.
+Burst rate limiter — protects Tiingo/Tavily/Groq spend and render load.
+Fails OPEN if Redis is down: a limiter outage shouldn't block legitimate
+research requests.
 
 Fixed-window counters via INCR+EXPIRE, per-minute AND per-hour buckets,
 keyed by user_id — same pattern as proposal-builder's rate_limiter.py.

@@ -6,7 +6,6 @@ from sqlalchemy import update
 from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from core.database import AsyncSessionLocal
-from core.credits_db import get_credits_db
 from core.redis import get_redis
 from models.asset import GeneratedAsset, JobStatus, AssetType
 from services.ai_service import ai_service
@@ -14,7 +13,6 @@ from services.document_service import document_service
 from services.logo_service import logo_service
 from services.templated_service import templated_service
 from services.upload_service import upload_service
-from services.credits_service import commit_credits, refund_credits
 from schemas.assets import (
     LogoInput, BusinessCardInput, LetterheadInput, EmailSignatureInput,
     InvoiceInput, QuotationInput, CompanyProfileInput,
@@ -36,7 +34,6 @@ async def process_job(payload: dict):
     asset_type  = payload["asset_type"]
     inputs      = payload["inputs"]
     user_id     = payload["user_id"]
-    credit_cost = payload.get("credit_cost", 0)
 
     async with AsyncSessionLocal() as session:
         try:
@@ -67,11 +64,6 @@ async def process_job(payload: dict):
             await session.commit()
             logger.info("Job %s completed successfully", payload["job_id"])
 
-            # Commit the reserved credits now that generation succeeded.
-            if credit_cost > 0:
-                async for credits_session in get_credits_db():
-                    await commit_credits(credits_session, user_id, credit_cost, asset_id)
-
         except Exception as exc:
             # Log the full exception server-side (includes traceback).
             logger.error("Job %s failed: %s", payload["job_id"], exc, exc_info=True)
@@ -93,11 +85,6 @@ async def process_job(payload: dict):
                 logger.error(
                     "Failed to write FAILED status for %s: %s", asset_id, db_err
                 )
-
-            # Refund the reserved credits — generation did not succeed.
-            if credit_cost > 0:
-                async for credits_session in get_credits_db():
-                    await refund_credits(credits_session, user_id, credit_cost, asset_id)
 
 
 async def _run_pipeline(asset_type: str, inputs: dict, user_id: str, asset_id: str) -> dict:

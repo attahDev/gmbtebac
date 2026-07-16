@@ -6,7 +6,6 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.core.credits_db import get_credits_db
 from app.dependencies import get_current_user, CurrentUser
 from app.models.pitch_deck import PitchDeck, DeckStatus, InputType, ThemeType
 from app.schemas.pitch_deck import (
@@ -18,7 +17,6 @@ from app.workers.deck_worker import process_deck_job, get_job_status
 from app.services.pptx_service import build_pptx, THEME_PREVIEWS
 from app.services.image_service import download_image_from_url
 from app.services.rate_limiter import check_rate_limit
-from app.services import credits_service
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -39,10 +37,8 @@ def generate_deck(
     request: GenerateRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    credits_db: Session = Depends(get_credits_db),
     current_user: CurrentUser = Depends(get_current_user),
 ):
-    credits_service.check_entitlement(current_user.plan)
     check_rate_limit(current_user.user_id)
 
     validator = INPUT_VALIDATORS.get(request.input_type)
@@ -53,8 +49,6 @@ def generate_deck(
         validated_data = validator(**request.data)
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Invalid input data: {e}")
-
-    reference_id = credits_service.reserve_credits(credits_db, current_user.user_id)
 
     deck = PitchDeck(
         user_id=current_user.user_id,
@@ -74,7 +68,6 @@ def generate_deck(
         job_id=job_id,
         deck_id=str(deck.id),
         user_id=current_user.user_id,
-        credit_reference_id=reference_id,
         input_type=request.input_type.value,
         data=validated_data.model_dump(),
         db=db,
@@ -82,8 +75,7 @@ def generate_deck(
     )
 
     logger.info(
-        f"Deck generation queued: job_id={job_id}, deck_id={deck.id}, "
-        f"user={current_user.user_id}, credit_ref={reference_id}"
+        f"Deck generation queued: job_id={job_id}, deck_id={deck.id}, user={current_user.user_id}"
     )
     return JobStatusResponse(job_id=job_id, deck_id=str(deck.id),
                              status=DeckStatus.pending, message="Deck generation started")

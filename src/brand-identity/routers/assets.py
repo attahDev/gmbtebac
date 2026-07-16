@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from core.config import settings
 from core.database import get_db
-from core.credits_db import get_credits_db
 from core.security import get_current_user
 from models.asset import GeneratedAsset, AssetType, JobStatus
 from schemas.assets import (
@@ -19,13 +18,6 @@ from schemas.assets import (
 from jobs.queue import enqueue_job
 from services.upload_service import upload_service
 from services.rate_limiter import check_rate_limit
-from services.credits_service import (
-    check_entitlement,
-    reserve_credits,
-    EntitlementError,
-    InsufficientCreditsError,
-    CreditsDbError,
-)
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 logger = logging.getLogger(__name__)
@@ -80,16 +72,8 @@ async def generate_asset(
     asset_type: str,
     inputs: dict,
     db: AsyncSession = Depends(get_db),
-    credits_db: AsyncSession = Depends(get_credits_db),
     user_id: str = Depends(get_current_user),
-    subscription_plan: str = Depends(_get_subscription_plan),
 ):
-    # ── 1. Entitlement gate (static, no DB call) ──────────────────────────
-    try:
-        check_entitlement(subscription_plan)
-    except EntitlementError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
-
     if asset_type not in ASSET_CONFIG:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -107,7 +91,7 @@ async def generate_asset(
             detail="Invalid request body. Please check your inputs and try again.",
         )
 
-    # ── 2. Burst rate limit (Redis, fails open) ───────────────────────────
+    # ── Burst rate limit (Redis, fails open) ──────────────────────────────
     allowed, retry_after = await check_rate_limit(user_id)
     if not allowed:
         return JSONResponse(
@@ -116,20 +100,8 @@ async def generate_asset(
             content={"detail": "Too many requests. Please wait before generating again."},
         )
 
-    # ── 3. Reserve credits (fails closed) ────────────────────────────────
-    cost = settings.BRAND_IDENTITY_CREDIT_COST
-    try:
-        asset_id = uuid.uuid4()
-        await reserve_credits(credits_db, user_id, cost, str(asset_id))
-    except InsufficientCreditsError as e:
-        raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail=str(e))
-    except CreditsDbError:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Credits system temporarily unavailable. No credits were charged. Please try again.",
-        )
-
-    # ── 4. Persist the asset record and enqueue the job ──────────────────
+    # ── Persist the asset record and enqueue the job ──────────────────────
+    asset_id = uuid.uuid4()
     job_id = f"job_{uuid.uuid4().hex}"
 
     asset = GeneratedAsset(
@@ -150,21 +122,15 @@ async def generate_asset(
             asset_type=asset_enum.value,
             inputs=validated.model_dump(),
             user_id=user_id,
-            credit_cost=cost,
         )
     except Exception:
         logger.exception("Failed to enqueue job %s for asset %s", job_id, asset_id)
         asset.status = JobStatus.FAILED
         asset.error_message = "Failed to queue generation job."
         await db.commit()
-        # Refund since the pipeline will never run
-        from services.credits_service import refund_credits
-        from core.credits_db import get_credits_db as _get_credits_db
-        async for refund_session in _get_credits_db():
-            await refund_credits(refund_session, user_id, cost, str(asset_id))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to queue generation job. No credits were charged. Please try again.",
+            detail="Failed to queue generation job. Please try again.",
         )
 
     return GenerateResponse(job_id=job_id, asset_id=str(asset_id))
@@ -179,16 +145,8 @@ async def regenerate_asset(
     asset_id: str,
     inputs: dict,
     db: AsyncSession = Depends(get_db),
-    credits_db: AsyncSession = Depends(get_credits_db),
     user_id: str = Depends(get_current_user),
-    subscription_plan: str = Depends(_get_subscription_plan),
 ):
-    # Entitlement + rate limit + credit reserve apply to regenerations too.
-    try:
-        check_entitlement(subscription_plan)
-    except EntitlementError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
-
     allowed, retry_after = await check_rate_limit(user_id)
     if not allowed:
         return JSONResponse(
@@ -209,19 +167,7 @@ async def regenerate_asset(
             detail="Invalid request body. Please check your inputs and try again.",
         )
 
-    cost = settings.BRAND_IDENTITY_CREDIT_COST
     new_asset_id = uuid.uuid4()
-
-    try:
-        await reserve_credits(credits_db, user_id, cost, str(new_asset_id))
-    except InsufficientCreditsError as e:
-        raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail=str(e))
-    except CreditsDbError:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Credits system temporarily unavailable. No credits were charged. Please try again.",
-        )
-
     new_job_id = f"job_{uuid.uuid4().hex}"
 
     new_asset = GeneratedAsset(
@@ -244,20 +190,15 @@ async def regenerate_asset(
             asset_type=asset_type_str,
             inputs=validated.model_dump(),
             user_id=user_id,
-            credit_cost=cost,
         )
     except Exception:
         logger.exception("Failed to enqueue regeneration job %s", new_job_id)
         new_asset.status = JobStatus.FAILED
         new_asset.error_message = "Failed to queue regeneration job."
         await db.commit()
-        from services.credits_service import refund_credits
-        from core.credits_db import get_credits_db as _get_credits_db
-        async for refund_session in _get_credits_db():
-            await refund_credits(refund_session, user_id, cost, str(new_asset_id))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to queue regeneration job. No credits were charged. Please try again.",
+            detail="Failed to queue regeneration job. Please try again.",
         )
 
     return GenerateResponse(
@@ -439,16 +380,3 @@ def _asset_to_status_response(asset: GeneratedAsset) -> AssetStatusResponse:
         error_message=safe_error,
         created_at=asset.created_at.isoformat() if asset.created_at else None,
     )
-
-
-async def _get_subscription_plan(
-    user_id: str = Depends(get_current_user),
-) -> str:
-    """
-    Extracts subscription_plan from the JWT payload.
-    Wired up via the auth middleware — the plan is injected alongside user_id.
-    Placeholder: reconcile the actual JWT claim name with the main platform.
-    """
-    # This will be replaced once the JWT shape from the main platform is confirmed.
-    # For now, return a sentinel that fails entitlement (safe default).
-    return "unknown"

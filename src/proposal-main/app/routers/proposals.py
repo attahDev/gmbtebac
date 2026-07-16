@@ -7,8 +7,6 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
-from app.core.credits_db import get_credits_db
 from app.core.database import get_db
 from app.middleware.auth import get_current_user
 from app.models.proposal import Proposal
@@ -20,7 +18,7 @@ from app.schemas.proposal import (
     ProposalContent,
     ProposalUpdateRequest,
 )
-from app.services import credits_service, groq_service, pdf_service, docx_service
+from app.services import groq_service, pdf_service, docx_service
 from app.services.rate_limiter import RateLimitExceeded, enforce_rate_limit
 
 logger = logging.getLogger(__name__)
@@ -66,19 +64,12 @@ async def generate_proposal(
     body: GenerateRequest,
     response: Response,
     db: AsyncSession = Depends(get_db),
-    credits_db: AsyncSession = Depends(get_credits_db),
     current_user: dict = Depends(get_current_user),
 ):
     user_id = current_user["user_id"]
-    plan = current_user.get("subscription_plan", "free")
 
-    # 1. Entitlement — does this plan include Proposal AI at all?
-    if not credits_service.is_entitled(plan):
-        raise credits_service.entitlement_error()
-
-    # 2. Burst protection — independent of credit balance, protects
-    #    Groq + rendering cost from tight-loop abuse. Fails open if
-    #    Redis is down.
+    # Burst protection — protects Groq + rendering cost from tight-loop
+    # abuse. Fails open if Redis is down.
     try:
         await enforce_rate_limit(user_id)
     except RateLimitExceeded as e:
@@ -88,14 +79,6 @@ async def generate_proposal(
             detail=f"Too many requests ({e.scope}). Try again in {e.retry_after}s.",
         )
 
-    # 3. Reserve credits from the shared GMBTE pool BEFORE calling
-    #    Groq. Fails closed — a credits-DB error blocks the request.
-    cost = settings.PROPOSAL_CREDIT_COST
-    try:
-        txn_id = await credits_service.reserve_credits(credits_db, user_id, cost)
-    except credits_service.InsufficientCredits:
-        raise credits_service.insufficient_credits_error()
-
     try:
         data = await groq_service.generate_proposal(
             body.prompt,
@@ -104,16 +87,13 @@ async def generate_proposal(
         )
     except ValueError as e:
         logger.error("Groq response parsing failed for user %s: %s", user_id, e)
-        await credits_service.refund_credits(credits_db, user_id, cost, txn_id)
-        raise HTTPException(status_code=500, detail="Proposal generation failed. No credits were charged. Please try again.")
+        raise HTTPException(status_code=500, detail="Proposal generation failed. Please try again.")
     except ConnectionError as e:
         logger.error("Groq API unreachable for user %s: %s", user_id, e)
-        await credits_service.refund_credits(credits_db, user_id, cost, txn_id)
-        raise HTTPException(status_code=503, detail="Proposal generation is temporarily unavailable. No credits were charged.")
+        raise HTTPException(status_code=503, detail="Proposal generation is temporarily unavailable.")
     except RuntimeError as e:
         logger.error("Groq API error for user %s: %s", user_id, e)
-        await credits_service.refund_credits(credits_db, user_id, cost, txn_id)
-        raise HTTPException(status_code=502, detail="Proposal generation failed upstream. No credits were charged.")
+        raise HTTPException(status_code=502, detail="Proposal generation failed upstream.")
 
     content = {k: data[k] for k in ProposalContent.model_fields.keys()}
     total_value = _extract_total_value(data.get("pricing", ""), fallback=body.estimated_budget)
@@ -130,14 +110,9 @@ async def generate_proposal(
         content=content,
     )
     db.add(proposal)
-    try:
-        await db.commit()
-    except Exception:
-        await credits_service.refund_credits(credits_db, user_id, cost, txn_id)
-        raise
+    await db.commit()
     await db.refresh(proposal)
 
-    await credits_service.commit_credits(credits_db, txn_id)
     return _to_response(proposal)
 
 @router.get("/", response_model=ProposalListResponse)

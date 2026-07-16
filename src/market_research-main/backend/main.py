@@ -12,7 +12,6 @@ from sqlalchemy import select, update
 from app.core.cache import close_redis, get_redis
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, create_schema, dispose_engine
-from app.core.credits_db import dispose_credits_engine
 from app.core.middleware import AuthMiddleware, RequestIDMiddleware
 from app.models.research import ResearchJob
 
@@ -106,7 +105,6 @@ async def lifespan(app: FastAPI):
     except asyncio.CancelledError:
         pass
     await dispose_engine()
-    await dispose_credits_engine()
     await close_redis()
     logger.info("Market Research AI service shut down")
 

@@ -5,12 +5,10 @@ from sqlalchemy.orm import Session
 import redis as redis_lib
 
 from app.config import settings
-from app.core.credits_db import CreditsSessionLocal
 from app.models.pitch_deck import PitchDeck, DeckStatus
 from app.services.groq_service import generate_slides
 from app.services.pptx_service import build_pptx
 from app.services.image_service import fetch_slide_images
-from app.services import credits_service
 
 logger = logging.getLogger(__name__)
 redis_client = redis_lib.from_url(settings.REDIS_URL, decode_responses=True)
@@ -31,25 +29,19 @@ def get_job_status(job_id) -> dict | None:
     return json.loads(raw) if raw else None
 
 
-def process_deck_job(job_id: str, deck_id: str, user_id: str, credit_reference_id: str,
+def process_deck_job(job_id: str, deck_id: str, user_id: str,
                      input_type: str, data: dict, db: Session, theme: str = "gmbte"):
     logger.info(f"[Worker] Starting job {job_id} for deck {deck_id}")
 
     deck: PitchDeck = db.query(PitchDeck).filter(PitchDeck.id == deck_id).first()
     if not deck:
         set_job_status(job_id, "failed", message="Deck record not found")
-        credits_db = CreditsSessionLocal()
-        try:
-            credits_service.refund_credits(credits_db, user_id, credit_reference_id)
-        finally:
-            credits_db.close()
         return
 
     deck.status = DeckStatus.processing
     db.commit()
     set_job_status(job_id, "processing", deck_id=str(deck_id))
 
-    credits_db = CreditsSessionLocal()
     try:
         # Step 1 — Generate slides via Groq
         logger.info(f"[Worker] Calling Groq for job {job_id}")
@@ -75,8 +67,6 @@ def process_deck_job(job_id: str, deck_id: str, user_id: str, credit_reference_i
         deck.status = DeckStatus.done
         db.commit()
 
-        credits_service.commit_credits(credits_db, user_id, credit_reference_id)
-
         set_job_status(job_id, "done", deck_id=str(deck_id))
         logger.info(f"[Worker] Job {job_id} completed successfully")
 
@@ -85,10 +75,7 @@ def process_deck_job(job_id: str, deck_id: str, user_id: str, credit_reference_i
         deck.status = DeckStatus.failed
         deck.error_message = str(e)
         db.commit()
-      
-        credits_service.refund_credits(credits_db, user_id, credit_reference_id)
 
         set_job_status(job_id, "failed", deck_id=str(deck_id), message=str(e))
     finally:
-        credits_db.close()
         db.close()
