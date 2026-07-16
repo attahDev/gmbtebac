@@ -1,0 +1,27 @@
+name: Connect to Azure PostgreSQL
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  connect-postgres:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Test Azure PostgreSQL connection
+        env:
+          PGPASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          psql "host=${{ secrets.DB_HOST }} port=${{ secrets.DB_PORT }} dbname=${{ secrets.DB_NAME }} user=${{ secrets.DB_USER }} sslmode=require" \
+          -c "SELECT current_database(), current_user, now();"
