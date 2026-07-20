@@ -225,8 +225,68 @@ async function seedTeamAccounts() {
   }
 }
 
+/**
+ * Creates 20 pre-verified STUDENT test accounts for QA/student testing.
+ * Same approach as seedTeamAccounts: isVerified: true bypasses the OTP step
+ * so testers can log in immediately. Passwords are printed once at the end.
+ * Re-running is safe: existing accounts are left alone.
+ */
+async function seedStudentTestAccounts() {
+  console.log('🌱 Seeding 20 student test accounts (bypassing email verification)...');
+
+  const accounts = Array.from({ length: 20 }, (_, i) => {
+    const n = i + 1;
+    return {
+      email: `student.test${n}@gmbt.dev`,
+      password: `Student${n}@Test2026!`,
+      firstname: 'Student',
+      lastname: `Tester ${n}`,
+      organization: 'GMBT',
+      role: UserRole.STUDENT,
+    };
+  });
+
+  const created: typeof accounts = [];
+
+  for (const acc of accounts) {
+    const existing = await prisma.user.findUnique({ where: { email: acc.email } });
+    if (existing) {
+      console.log(`ℹ️  ${acc.email} already exists — skipping.`);
+      continue;
+    }
+
+    const hashedPassword = await bcrypt.hash(acc.password, 12);
+    await prisma.user.create({
+      data: {
+        email: acc.email,
+        password: hashedPassword,
+        firstname: acc.firstname,
+        lastname: acc.lastname,
+        organization: acc.organization,
+        role: acc.role,
+        isVerified: true, // skip OTP — straight to usable
+        agreedToTerms: true,
+      },
+    });
+    created.push(acc);
+  }
+
+  if (created.length) {
+    console.log('✅ Student test accounts created:');
+    console.log('');
+    for (const acc of created) {
+      console.log(`  ${acc.email}  /  ${acc.password}`);
+    }
+    console.log('');
+    console.log('  ⚠️  These are for internal testing only — do not reuse in production data.');
+  } else {
+    console.log('ℹ️  All 20 student test accounts already existed — nothing created.');
+  }
+}
+
 main()
   .then(() => seedTeamAccounts())
+  .then(() => seedStudentTestAccounts())
   .then(() => seedCatalogue())
   .catch((e) => {
     console.error('❌ Seed failed:', e);
