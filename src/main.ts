@@ -9,9 +9,8 @@ async function bootstrap() {
 
 app.enableCors({
   origin: [
-    "http://localhost:5173",
     "https://gmbtefro.vercel.app",
-    "https://gmbtefro-pfst.vercel.app", // optional if you still use preview deployments
+    "https://www.gmblacktechexpo.co.uk", // optional if you still use preview deployments
   ],
   credentials: true,
   methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
