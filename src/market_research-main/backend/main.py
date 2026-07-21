@@ -20,6 +20,8 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s — %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
 async def _timeout_sweep() -> None:
     from app.services.job_utils import update_job_status, increment_retry_count
     from app.api.v1.research import run_research_pipeline
@@ -82,6 +84,7 @@ async def _timeout_sweep() -> None:
         except Exception as e:
             logger.error(f"Timeout sweep error: {e}")
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting Market Research AI service...")
@@ -108,6 +111,7 @@ async def lifespan(app: FastAPI):
     await close_redis()
     logger.info("Market Research AI service shut down")
 
+
 app = FastAPI(
     title="Market Research AI",
     description="AI-powered market research microservice",
@@ -128,6 +132,7 @@ app.add_middleware(
 )
 app.add_middleware(AuthMiddleware)
 app.add_middleware(RequestIDMiddleware)
+
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -151,8 +156,10 @@ async def global_exception_handler(request: Request, exc: Exception):
         },
     )
 
+
+# Prefix owned here — router itself is prefix-free
 from app.api.v1.research import router as research_router
-app.include_router(research_router)
+app.include_router(research_router, prefix="/api/v1")
 
 
 @app.get("/health")
