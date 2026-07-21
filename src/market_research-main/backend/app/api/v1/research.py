@@ -28,7 +28,10 @@ from app.services.rate_limiter import check_rate_limit
 from app.services.summarizer import summarize
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/v1", tags=["research"])
+
+# No prefix here — /api/v1 is injected by main.py via include_router
+router = APIRouter(tags=["research"])
+
 
 def _request_id(request: Request) -> str:
     return getattr(request.state, "request_id", str(uuid.uuid4()))
@@ -184,7 +187,7 @@ async def run_research_pipeline(job_id: str, query: str, query_normalized: str) 
 
 
 # ---------------------------------------------------------------------------
-# POST /api/v1/research
+# POST /api/v1/research  (prefix /api/v1 comes from main.py)
 # ---------------------------------------------------------------------------
 
 @router.post("/research", status_code=202)
@@ -285,6 +288,11 @@ async def create_research_job(
         await set_idempotency(idem_key, response_data)
 
     return _success(response_data, request)
+
+
+# ---------------------------------------------------------------------------
+# GET /api/v1/research/{job_id}  (prefix /api/v1 comes from main.py)
+# ---------------------------------------------------------------------------
 
 @router.get("/research/{job_id}")
 async def get_research_job(
