@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 TEMPLATED_BASE = "https://api.templated.io/v1"
 
 TEMPLATED_TEMPLATE_IDS: dict[str, str] = {
-    "business_card":   "09c4e428-d8b0-438e-9410-ffcadc4e716e",
+    "business_card":   "3bb2a67a-1fd8-4d9a-95e8-877bcd78be9e",
     "letterhead":      "f76f7662-5daa-476d-9142-8e4b429ed8aa",
     "email_signature": "5ce9625e-cd9f-48a9-a0a2-bf18c1ba68b1",
     "invoice":         "",
@@ -91,6 +91,8 @@ LETTERHEAD_LAYERS: dict[str, tuple[str, str]] = {
     "website":             ("text",      "website"),
     "tagline":             ("text",      "tagline"),
     "registration_number": ("text",      "registrationNumber"),
+    "social_link":         ("text",      "socialLinks"),
+    "content_body":        ("text",      "content-area-placeholder"),
     "logo_url":            ("image_url", "logo"),
 }
 
@@ -102,6 +104,7 @@ EMAIL_SIGNATURE_LAYERS: dict[str, tuple[str, str]] = {
     "phone":               ("text",      "phone"),
     "banner_text":         ("text",      "bannerText"),
     "registration_number": ("text",      "registrationNumber"),  # VERIFY against template layer panel
+    "social_link":         ("text",      "socialLinks"),
     "photo_url":           ("image_url", "photo"),
     "logo_url":            ("image_url", "logo"),
 }
@@ -226,7 +229,7 @@ class TemplatedService:
         asset_type: str,
         inputs: dict,
         output_format: str = "png",
-    ) -> list[bytes]:
+    ) -> bytes:
         if asset_type not in _LAYER_MAPS:
             raise ValueError(f"Templated: unsupported asset_type '{asset_type}'")
 
@@ -280,29 +283,27 @@ class TemplatedService:
             result = resp.json()
             logger.info("=== TEMPLATED RESPONSE ===")
             logger.info(result)
-            results = result if isinstance(result, list) else [result]
+            if isinstance(result, list):
+                result = result[0]
 
-        pages: list[bytes] = []
+        render_url = result.get("url")
+        if not render_url:
+            raise ValueError(f"Templated: no 'url' in response: {result}")
+
+        if result.get("status") == "FAILED":
+            raise ValueError(f"Templated: render failed: {result}")
+
+        logger.info(f"Templated: downloading from {render_url}")
         async with httpx.AsyncClient(timeout=60) as client:
-            for page_result in results:
-                render_url = page_result.get("url")
-                if not render_url:
-                    raise ValueError(f"Templated: no 'url' in response: {page_result}")
+            file_resp = await client.get(render_url)
+            file_resp.raise_for_status()
 
-                if page_result.get("status") == "FAILED":
-                    raise ValueError(f"Templated: render failed: {page_result}")
+            if not file_resp.content:
+                raise ValueError(
+                    f"Templated returned empty output for {asset_type}"
+                )
 
-                logger.info(f"Templated: downloading from {render_url}")
-                file_resp = await client.get(render_url)
-                file_resp.raise_for_status()
-
-                if not file_resp.content:
-                    raise ValueError(
-                        f"Templated returned empty output for {asset_type}"
-                    )
-                pages.append(file_resp.content)
-
-        return pages
+            return file_resp.content
 
 
 templated_service = TemplatedService()
