@@ -7,9 +7,9 @@ logger = logging.getLogger(__name__)
 TEMPLATED_BASE = "https://api.templated.io/v1"
 
 TEMPLATED_TEMPLATE_IDS: dict[str, str] = {
-    "business_card":   "3bb2a67a-1fd8-4d9a-95e8-877bcd78be9e",
-    "letterhead":      "f76f7662-5daa-476d-9142-8e4b429ed8aa",
-    "email_signature": "5ce9625e-cd9f-48a9-a0a2-bf18c1ba68b1",
+    "business_card":   "09c4e428-d8b0-438e-9410-ffcadc4e716e",
+    "letterhead":      "35450ba9-9e31-447d-9b37-05df9fb09c7e",
+    "email_signature": "1694e480-5548-4505-9ac6-a8a0ded8b2fa",
     "invoice":         "",
     "quotation":       "",
 }
