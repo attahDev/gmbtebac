@@ -91,7 +91,6 @@ LETTERHEAD_LAYERS: dict[str, tuple[str, str]] = {
     "website":             ("text",      "website"),
     "tagline":             ("text",      "tagline"),
     "registration_number": ("text",      "registrationNumber"),
-    "social_link":         ("text",      "socialLinks"),
     "content_body":        ("text",      "content-area-placeholder"),
     "logo_url":            ("image_url", "logo"),
 }
@@ -104,7 +103,6 @@ EMAIL_SIGNATURE_LAYERS: dict[str, tuple[str, str]] = {
     "phone":               ("text",      "phone"),
     "banner_text":         ("text",      "bannerText"),
     "registration_number": ("text",      "registrationNumber"),  # VERIFY against template layer panel
-    "social_link":         ("text",      "socialLinks"),
     "photo_url":           ("image_url", "photo"),
     "logo_url":            ("image_url", "logo"),
 }
@@ -151,8 +149,8 @@ _LAYER_MAPS: dict[str, dict[str, tuple[str, str]]] = {
     "quotation":       QUOTATION_LAYERS,
 }
 
-# Only these templates actually have a socialLinks layer — don't touch it on others
-_ASSETS_WITH_SOCIAL = {"business_card", "email_signature"}
+# socialLinks layer confirmed present on business_card, email_signature, and letterhead
+_ASSETS_WITH_SOCIAL = {"business_card", "email_signature", "letterhead"}
 
 
 def _build_layers(asset_type: str, inputs: dict) -> dict:
