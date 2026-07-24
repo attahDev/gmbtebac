@@ -1,4 +1,3 @@
-
 import re
 import uuid
 import asyncio
@@ -41,7 +40,11 @@ class UploadService:
             endpoint_url=settings.STORAGE_ENDPOINT_URL or None,
             aws_access_key_id=settings.STORAGE_ACCESS_KEY,
             aws_secret_access_key=settings.STORAGE_SECRET_KEY,
-            config=Config(signature_version="s3v4"),
+            region_name=settings.STORAGE_REGION,
+            config=Config(
+                signature_version="s3v4",
+                s3={"addressing_style": "path"},
+            ),
         )
 
     async def upload_logo(self, file: UploadFile, user_id: str) -> str:
