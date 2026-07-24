@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 TEMPLATED_BASE = "https://api.templated.io/v1"
 
 TEMPLATED_TEMPLATE_IDS: dict[str, str] = {
-    "business_card":   "3bb2a67a-1fd8-4d9a-95e8-877bcd78be9e",
+    "business_card":   "09c4e428-d8b0-438e-9410-ffcadc4e716e",
     "letterhead":      "f76f7662-5daa-476d-9142-8e4b429ed8aa",
     "email_signature": "5ce9625e-cd9f-48a9-a0a2-bf18c1ba68b1",
     "invoice":         "",
@@ -226,7 +226,7 @@ class TemplatedService:
         asset_type: str,
         inputs: dict,
         output_format: str = "png",
-    ) -> bytes:
+    ) -> list[bytes]:
         if asset_type not in _LAYER_MAPS:
             raise ValueError(f"Templated: unsupported asset_type '{asset_type}'")
 
@@ -280,27 +280,29 @@ class TemplatedService:
             result = resp.json()
             logger.info("=== TEMPLATED RESPONSE ===")
             logger.info(result)
-            if isinstance(result, list):
-                result = result[0]
+            results = result if isinstance(result, list) else [result]
 
-        render_url = result.get("url")
-        if not render_url:
-            raise ValueError(f"Templated: no 'url' in response: {result}")
-
-        if result.get("status") == "FAILED":
-            raise ValueError(f"Templated: render failed: {result}")
-
-        logger.info(f"Templated: downloading from {render_url}")
+        pages: list[bytes] = []
         async with httpx.AsyncClient(timeout=60) as client:
-            file_resp = await client.get(render_url)
-            file_resp.raise_for_status()
+            for page_result in results:
+                render_url = page_result.get("url")
+                if not render_url:
+                    raise ValueError(f"Templated: no 'url' in response: {page_result}")
 
-            if not file_resp.content:
-                raise ValueError(
-                    f"Templated returned empty output for {asset_type}"
-                )
+                if page_result.get("status") == "FAILED":
+                    raise ValueError(f"Templated: render failed: {page_result}")
 
-            return file_resp.content
+                logger.info(f"Templated: downloading from {render_url}")
+                file_resp = await client.get(render_url)
+                file_resp.raise_for_status()
+
+                if not file_resp.content:
+                    raise ValueError(
+                        f"Templated returned empty output for {asset_type}"
+                    )
+                pages.append(file_resp.content)
+
+        return pages
 
 
 templated_service = TemplatedService()
