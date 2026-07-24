@@ -56,6 +56,7 @@ async def process_job(payload: dict):
                     docx_url=result.get("docx_url"),
                     png_url=result.get("png_url"),
                     svg_light_url=result.get("svg_light_url"),
+                    png_transparent_url=result.get("png_transparent_url"),
                     # Never write raw exception text here — only write on failure path.
                     error_message=None,
                     updated_at=datetime.utcnow(),
@@ -137,18 +138,26 @@ async def _templated_pipeline(
     output_format: str = "png",
 ) -> dict:
     schema_class(**inputs)
-    file_bytes = await templated_service.render(asset_type, inputs, output_format)
+    pages = await templated_service.render(asset_type, inputs, output_format)
 
     if output_format == "pdf":
         url = await upload_service.upload_generated_file(
-            file_bytes, "application/pdf", asset_type, user_id
+            pages[0], "application/pdf", asset_type, user_id
         )
         return {"pdf_url": url, "ai_content": {"source": "templated"}}
     else:
         url = await upload_service.upload_generated_file(
-            file_bytes, "image/png", asset_type, user_id
+            pages[0], "image/png", asset_type, user_id
         )
-        return {"png_url": url, "ai_content": {"source": "templated"}}
+        result = {"png_url": url, "ai_content": {"source": "templated"}}
+        if len(pages) > 1:
+            # Second page (e.g. business card back) — reuses the otherwise
+            # unused png_transparent_url column rather than a schema change.
+            back_url = await upload_service.upload_generated_file(
+                pages[1], "image/png", asset_type, user_id
+            )
+            result["png_transparent_url"] = back_url
+        return result
 
 
 async def _pipeline_business_card(inputs: dict, user_id: str, asset_id: str) -> dict:
