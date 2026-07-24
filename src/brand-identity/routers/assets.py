@@ -316,6 +316,7 @@ async def export_asset(
     if asset.docx_url:       export_urls["docx"] = asset.docx_url
     if asset.png_url:        export_urls["png"]  = asset.png_url
     if asset.svg_light_url:  export_urls["logo"] = asset.svg_light_url
+    if asset.png_transparent_url: export_urls["png_back"] = asset.png_transparent_url
 
     if not export_urls:
         raise HTTPException(404, "No export files available for this asset.")
