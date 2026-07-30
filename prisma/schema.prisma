@@ -56,6 +56,7 @@ model User {
   courseProgress        CourseProgress[]
   eventAttendance       EventAttendance[]
   createdEvents         Event[]
+  createdNewsArticles   NewsArticle[]
   userBadges            UserBadge[]
   activityLogs          ActivityLog[]
   tributes              Tribute[]
@@ -766,6 +767,50 @@ model EventAttendance {
   @@unique([userId, eventId])
   @@index([userId])
   @@map("event_attendance")
+}
+
+// Admin-curated news/press articles — landing page teaser + the dedicated
+// /news archive. Deliberately no submission/moderation flow like Event's
+// USER source: "dropping articles" is an admin/content-team action, not a
+// member-facing feature, so there's no EventSource-style split here.
+model NewsArticle {
+  id            String  @id @default(uuid())
+  title         String
+  // Short standfirst shown on cards (landing teaser + /news archive) and
+  // as the fallback preview text wherever body/link aren't rendered.
+  excerpt       String?
+  coverImageUrl String?
+  // In-platform body (rich text/markdown from the admin editor) — powers
+  // the article's own /news/:id detail page. Nullable because an article
+  // can instead just point out via externalLink below.
+  body          String?
+  // Outbound URL — press coverage, a partner's blog post, an external
+  // publication, etc. When set (and body isn't), cards link straight out
+  // instead of to a detail page. Enforcing "at least one of body/
+  // externalLink" happens in NewsService, not here — Prisma has no
+  // cross-column check constraint.
+  externalLink  String?
+  // Free-form chips, same convention as Event.tags / Course.tags.
+  tags          String[] @default([])
+  isActive      Boolean  @default(true)
+  // Featured articles are pinned first on the landing teaser and the /news
+  // archive, ahead of anything sorted purely by publishedAt — mirrors
+  // Event.isFeatured.
+  isFeatured    Boolean  @default(false)
+  // Separate from createdAt so an article can be backdated/scheduled by
+  // setting this explicitly, or left to default to "now" for same-day
+  // drops. Public listings sort and filter on this, not createdAt.
+  publishedAt   DateTime @default(now())
+
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([publishedAt])
+  @@map("news_articles")
 }
 
 model Badge {

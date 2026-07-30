@@ -154,4 +154,38 @@ export class UploadsService {
 
     return { url: `${base.replace(/\/$/, '')}/${key}` };
   }
+
+  /** Cover photo for an admin-authored News article. Same caps as the
+   *  other image uploads, own S3 prefix so news assets are easy to find. */
+  async uploadNewsImage(file: Express.Multer.File): Promise<{ url: string }> {
+    if (!file) throw new BadRequestException('No file uploaded');
+
+    if (!ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
+      throw new BadRequestException(
+        `Unsupported file type '${file.mimetype}'. Allowed: PNG, JPEG, WEBP, GIF.`,
+      );
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      throw new BadRequestException(`File too large. Max ${Math.round(MAX_IMAGE_BYTES / (1024 * 1024))}MB.`);
+    }
+
+    const ext = file.originalname.includes('.') ? file.originalname.split('.').pop() : undefined;
+    const key = `news-articles/${randomUUID()}${ext ? `.${ext}` : ''}`;
+
+    await this.client().send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+        ACL: 'public-read',
+      }),
+    );
+
+    const base =
+      process.env.STORAGE_PUBLIC_URL ||
+      `https://${this.bucket}.s3.${process.env.STORAGE_REGION || 'us-east-1'}.amazonaws.com`;
+
+    return { url: `${base.replace(/\/$/, '')}/${key}` };
+  }
 }
