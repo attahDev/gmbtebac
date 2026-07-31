@@ -398,7 +398,7 @@ async function seedTeamAccounts() {
 
     // Special account
     {
-      email: 'jasin1999smith1@yahoo.com',
+      email: 'jason1999smith1@yahoo.com',
       password: 'Jason1999!',
       firstname: 'Jason',
       lastname: 'Smith',
