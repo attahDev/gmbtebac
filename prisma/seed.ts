@@ -398,10 +398,10 @@ async function seedTeamAccounts() {
 
     // Special account
     {
-      email: 'jason1999smith1@yahoo.com',
-      password: 'Jason1999!',
-      firstname: 'Jason',
-      lastname: 'Smith',
+      email: 'otisthomas@gmbte.dev',
+      password: 'OtisThomas1999!',
+      firstname: 'Otis',
+      lastname: 'Thomas',
       organization: 'GMBT',
       role: UserRole.ENGINEER, // Change to ADMIN if preferred
     },
