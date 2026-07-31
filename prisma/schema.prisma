@@ -57,6 +57,7 @@ model User {
   eventAttendance       EventAttendance[]
   createdEvents         Event[]
   createdNewsArticles   NewsArticle[]
+  newsComments          NewsComment[]
   userBadges            UserBadge[]
   activityLogs          ActivityLog[]
   tributes              Tribute[]
@@ -805,12 +806,44 @@ model NewsArticle {
   createdById String?
   createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
+  comments NewsComment[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([isActive])
   @@index([publishedAt])
   @@map("news_articles")
+}
+
+// Reader comments on a NewsArticle. Kept as its own table rather than
+// reusing the existing Comment model (which is hard-wired to
+// SpotlightStory via a required storyId) — separating the two avoids
+// touching that model's existing shape/migrations for an unrelated
+// feature.
+model NewsComment {
+  id String @id @default(uuid())
+
+  articleId String
+  article   NewsArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  // Nullable: accounts/login aren't open to the public yet, so comments
+  // need to work without one. userId is filled in when the poster does
+  // happen to be logged in (auto-attributed, and only they can delete it
+  // afterwards); otherwise authorName holds the guest display name they
+  // typed in. Exactly one of the two is expected to be set — enforced in
+  // NewsService, not here.
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  authorName String?
+
+  content String
+
+  createdAt DateTime @default(now())
+
+  @@index([articleId])
+  @@map("news_comments")
 }
 
 model Badge {

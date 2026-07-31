@@ -12,8 +12,10 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../../guards/optional-jwt-auth.guard';
 import { RolesGuard } from '../../guards/roles.guard';
 import { Roles } from '../../decorators/roles.decorator';
 import { CurrentUser } from '../../decorators/current-user.decorator';
@@ -134,6 +136,51 @@ export class NewsController {
   @Roles(UserRole.ADMIN)
   removeArticle(@Param('id') id: string) {
     return this.newsService.removeArticle(id);
+  }
+
+  // ───────────────────────── Comments ─────────────────────────
+  // Registered before the bare ':id' route below — ':id/comments' and
+  // 'comments/:id' are two-segment paths so they wouldn't actually clash
+  // with the one-segment ':id', but keeping all multi-segment routes
+  // grouped above it matches the ordering convention used elsewhere in
+  // this controller.
+
+  @Get(':id/comments')
+  findComments(@Param('id') id: string) {
+    return this.newsService.findComments(id);
+  }
+
+  @Post(':id/comments')
+  @UseGuards(OptionalJwtAuthGuard, ThrottlerGuard)
+  // Anyone can post (accounts aren't public yet — see OptionalJwtAuthGuard),
+  // which is exactly the kind of open, unauthenticated write endpoint that
+  // needs its own throttle: nothing else in this app currently activates
+  // ThrottlerGuard (the @Throttle() decorators on auth/contact/mentor-ai
+  // are dead code without a guard applying them), so this is scoped to
+  // just this route rather than flipping on global throttling as a
+  // side effect. 5 comments/minute per IP is generous for a real reader,
+  // tight enough to blunt a basic spam script.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  addComment(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body('content') content: string,
+    @Body('authorName') authorName?: string,
+  ) {
+    return this.newsService.addComment(user?.userId ?? null, id, content, authorName);
+  }
+
+  @Delete('comments/:id')
+  @UseGuards(JwtAuthGuard)
+  deleteOwnComment(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.newsService.deleteOwnComment(user.userId, id);
+  }
+
+  @Delete('admin/comments/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  deleteCommentAdmin(@Param('id') id: string) {
+    return this.newsService.deleteCommentAdmin(id);
   }
 
   /** Single article detail — registered after the static admin/public GET

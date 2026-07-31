@@ -1,8 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UploadsService } from '../../uploads/uploads.service';
 import { CreateNewsArticleDto } from './dto/create-news-article.dto';
 import { UpdateNewsArticleDto } from './dto/update-news-article.dto';
+import { containsProfanity } from './profanity-filter';
 
 @Injectable()
 export class NewsService {
@@ -129,5 +130,94 @@ export class NewsService {
     if (!existing) throw new NotFoundException('Article not found');
 
     return this.prisma.newsArticle.update({ where: { id }, data: { isActive: false } });
+  }
+
+  // ───────────────────────── Comments ─────────────────────────
+  // Same shape as CommunityService's spotlight comments, minus the
+  // like/comment-count bookkeeping (NewsArticle doesn't track a running
+  // comment total) and minus the author notification — the article's
+  // createdBy admin isn't wired up to receive per-comment pings the way
+  // a spotlight post's author is.
+
+  /** Public — comments thread under an article. Only on active articles,
+   *  same reasoning as findOne. */
+  async findComments(articleId: string) {
+    const article = await this.prisma.newsArticle.findUnique({ where: { id: articleId } });
+    if (!article || !article.isActive) {
+      throw new NotFoundException('Article not found');
+    }
+
+    return this.prisma.newsComment.findMany({
+      where: { articleId },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        user: { select: { firstname: true, lastname: true } },
+      },
+    });
+  }
+
+  /** Logged-in users only — enforced by JwtAuthGuard at the controller. */
+  /** userId is null for guest commenters (accounts/login aren't public
+   *  yet) — authorName is required in that case instead. When userId IS
+   *  present, authorName is ignored in favour of the account's real name,
+   *  same as every other author-attributed record in this codebase. */
+  async addComment(
+    userId: string | null,
+    articleId: string,
+    content: string,
+    authorName?: string,
+  ) {
+    if (!content?.trim()) {
+      throw new BadRequestException('Comment cannot be empty');
+    }
+    if (content.trim().length > 2000) {
+      throw new BadRequestException('Comment is too long (max 2000 characters)');
+    }
+    if (!userId && !authorName?.trim()) {
+      throw new BadRequestException('Name is required to comment');
+    }
+    if (!userId && authorName!.trim().length > 80) {
+      throw new BadRequestException('Name is too long (max 80 characters)');
+    }
+    if (containsProfanity(content) || (!userId && containsProfanity(authorName!))) {
+      throw new BadRequestException(
+        "Your comment couldn't be posted — please remove any inappropriate language and try again.",
+      );
+    }
+
+    const article = await this.prisma.newsArticle.findUnique({ where: { id: articleId } });
+    if (!article || !article.isActive) {
+      throw new NotFoundException('Article not found');
+    }
+
+    return this.prisma.newsComment.create({
+      data: {
+        articleId,
+        userId: userId ?? undefined,
+        authorName: userId ? undefined : authorName!.trim(),
+        content: content.trim(),
+      },
+      include: {
+        user: { select: { firstname: true, lastname: true } },
+      },
+    });
+  }
+
+  async deleteOwnComment(userId: string, commentId: string) {
+    const comment = await this.prisma.newsComment.findUnique({ where: { id: commentId } });
+    if (!comment) throw new NotFoundException('Comment not found');
+    if (comment.userId !== userId) throw new ForbiddenException('Not your comment');
+
+    await this.prisma.newsComment.delete({ where: { id: commentId } });
+    return { removed: true };
+  }
+
+  /** Admin moderation — remove any comment regardless of author. */
+  async deleteCommentAdmin(commentId: string) {
+    const comment = await this.prisma.newsComment.findUnique({ where: { id: commentId } });
+    if (!comment) throw new NotFoundException('Comment not found');
+
+    await this.prisma.newsComment.delete({ where: { id: commentId } });
+    return { removed: true };
   }
 }
