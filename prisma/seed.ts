@@ -396,12 +396,12 @@ async function seedTeamAccounts() {
       };
     }),
 
-    // Special account
+    // Special account AleroDoyle
     {
-      email: 'otisthomas@gmbte.dev',
-      password: 'OtisThomas1999!',
-      firstname: 'Otis',
-      lastname: 'Thomas',
+      email: 'alerodoyle@gmbte.dev',
+      password: 'AleroDoyle1999!',
+      firstname: 'Alero',
+      lastname: 'Doyle',
       organization: 'GMBT',
       role: UserRole.ENGINEER, // Change to ADMIN if preferred
     },
