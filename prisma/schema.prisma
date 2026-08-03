@@ -1085,8 +1085,8 @@ model SpotlightStory {
 
 model Comment {
   id         String   @id @default(uuid())
-  postId     String
-  authorId   String
+  storyId    String
+  userId     String
   content    String
   createdAt  DateTime @default(now())
   flagged    Boolean  @default(false)
