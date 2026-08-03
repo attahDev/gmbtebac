@@ -59,8 +59,8 @@ export class CommunityController {
   }
 
   @Get('spotlight/:id/comments')
-  findComments(@Param('id') id: string) {
-    return this.communityService.findComments(id);
+  findComments(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.communityService.findComments(id, user?.userId);
   }
 
   @Post('spotlight/:id/comments')

@@ -22,7 +22,12 @@ export class MailService {
       });
       return true;
     } catch (error) {
-      console.error('Error Sending Mail', error);
+      // Previously this was the ONLY trace of a failed send — register()
+      // and resendVerificationEmail() both ignored the return value and
+      // told the user it worked regardless. Logging the recipient here so
+      // a bad send is at least greppable in the Render logs even before
+      // the caller-side fix below.
+      console.error(`Failed to send verification email to ${email}:`, error);
       return false;
     }
   }

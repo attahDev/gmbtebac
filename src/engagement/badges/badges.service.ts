@@ -16,7 +16,8 @@ export type BadgeMetric =
   | 'EVENTS_ATTENDED'
   | 'MENTOR_CONNECTIONS'
   | 'GREEN_ACTIONS_LOGGED'
-  | 'GREEN_CO2_KG';
+  | 'GREEN_CO2_KG'
+  | 'CERTIFICATES_EARNED';
 
 @Injectable()
 export class BadgesService {
@@ -49,6 +50,8 @@ export class BadgesService {
         });
         return agg._sum.co2OffsetKg ?? 0;
       }
+      case 'CERTIFICATES_EARNED':
+        return this.prisma.certificate.count({ where: { userId } });
     }
   }
 

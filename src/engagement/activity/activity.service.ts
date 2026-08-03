@@ -10,6 +10,7 @@ const TYPE_CATEGORY: Record<string, string> = {
   COURSE_STARTED: 'Academy',
   MODULE_COMPLETED: 'Academy',
   COURSE_COMPLETED: 'Academy',
+  CERTIFICATE_ISSUED: 'Academy',
   GREEN_ACTION_LOGGED: 'Green Impact',
   GREEN_AI_CHAT: 'Green Impact',
   NOMINATION_SUBMITTED: 'Hall of Fame',

@@ -477,7 +477,7 @@ def build_invoice_pdf(inputs: dict, asset_id: str='default') -> bytes:
     pri = inputs.get('primary_color') or DEFAULT_PRIMARY
     sec = inputs.get('secondary_color') or DEFAULT_SECONDARY
     sty = _styles(pri, sec)
-    sym = (inputs.get('currency') or 'NGN ₦').split()[-1]
+    sym = (inputs.get('currency') or 'GBP £').split()[-1]
     buf = io.BytesIO()
     doc = _make_doc(buf, top_mm=tmpl['body_top_mm'], bottom_mm=tmpl['body_bottom_mm'], left_mm=20, right_mm=20, bg_fn=bg_fn, inputs=inputs, var=var)
     today = datetime.now().strftime('%d %B %Y')
@@ -540,7 +540,7 @@ def build_quotation_pdf(inputs: dict, asset_id: str='default') -> bytes:
     pri = inputs.get('primary_color') or DEFAULT_PRIMARY
     sec = inputs.get('secondary_color') or DEFAULT_SECONDARY
     sty = _styles(pri, sec)
-    sym = (inputs.get('currency') or 'NGN ₦').split()[-1]
+    sym = (inputs.get('currency') or 'GBP £').split()[-1]
     buf = io.BytesIO()
     doc = _make_doc(buf, top_mm=tmpl['body_top_mm'], bottom_mm=tmpl['body_bottom_mm'], left_mm=20, right_mm=20, bg_fn=bg_fn, inputs=inputs, var=var)
     today = datetime.now().strftime('%d %B %Y')
@@ -931,7 +931,7 @@ def build_letterhead_docx(inputs: dict, asset_id: str='default') -> bytes:
 def build_invoice_docx(inputs: dict, asset_id: str='default') -> bytes:
     pri = inputs.get('primary_color', DEFAULT_PRIMARY).lstrip('#')
     sec = inputs.get('secondary_color', DEFAULT_SECONDARY).lstrip('#')
-    sym = (inputs.get('currency') or 'NGN ₦').split()[-1]
+    sym = (inputs.get('currency') or 'GBP £').split()[-1]
     pri_rgb = RGBColor(*[int(pri[i:i + 2], 16) for i in (0, 2, 4)])
     sec_rgb = RGBColor(*[int(sec[i:i + 2], 16) for i in (0, 2, 4)])
     today = datetime.now().strftime('%d %B %Y')
@@ -1022,7 +1022,7 @@ def build_invoice_docx(inputs: dict, asset_id: str='default') -> bytes:
 
 def build_quotation_docx(inputs: dict, asset_id: str='default') -> bytes:
     pri = inputs.get('primary_color', DEFAULT_PRIMARY).lstrip('#')
-    sym = (inputs.get('currency') or 'NGN ₦').split()[-1]
+    sym = (inputs.get('currency') or 'GBP £').split()[-1]
     pri_rgb = RGBColor(*[int(pri[i:i + 2], 16) for i in (0, 2, 4)])
     today = datetime.now().strftime('%d %B %Y')
     doc = DocxDocument()

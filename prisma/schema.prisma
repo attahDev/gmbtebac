@@ -71,6 +71,7 @@ model User {
   notifications         Notification[]
   skillLogs             SkillLog[]
   careerGoal            MenteeCareerGoal?
+  certificates          Certificate[]
 
   @@map("users")
 }
@@ -479,6 +480,12 @@ model Course {
   title       String
   description String?
   category    String?
+  // Which Academy "School" this course belongs to (e.g. "microsoft",
+  // "aws", "google-cloud", "nvidia", "salesforce", "data-science",
+  // "research", "startup", "investor", "business"). Null/unused for
+  // non-Academy categories like "climate". Free-form string (not an enum)
+  // so a new School can be added via content/config alone.
+  school      String?
   // Free-form sub-tags for sorting/filtering WITHIN a category — e.g.
   // ["Web Development", "Beginner"] on an education course, or
   // ["Energy", "Certification"] on a climate one. Separate from `category`,
@@ -504,10 +511,12 @@ model Course {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  progress CourseProgress[]
-  modules  Module[]
+  progress     CourseProgress[]
+  modules      Module[]
+  certificates Certificate[]
 
   @@index([isActive])
+  @@index([school])
   @@map("courses")
 }
 
@@ -550,6 +559,10 @@ model ModuleProgress {
   completedSectionIds String[] @default([])
   isCompleted         Boolean  @default(false)
   completedAt         DateTime?
+  // Keyed by the quiz section's id (see ModuleSectionDto type: 'quiz').
+  // { [sectionId]: { score, total, passed, attemptedAt } } — lets a module
+  // hold a quiz section without a separate Quiz/QuizAttempt table.
+  quizScores          Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -557,6 +570,27 @@ model ModuleProgress {
   @@unique([userId, moduleId])
   @@index([userId])
   @@map("module_progress")
+}
+
+model Certificate {
+  id       String @id @default(uuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  // Short, guessable-resistant code printed on the PDF and used for the
+  // public /verify/:code lookup — not the same as `id` so we're free to
+  // reissue/regenerate the PDF later without invalidating the code.
+  verificationCode String  @unique @default(uuid())
+  pdfUrl           String?
+  issuedByUserId   String
+
+  issuedAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([courseId])
+  @@map("certificates")
 }
 
 model GreenProject {
@@ -666,12 +700,33 @@ model CourseProgress {
   completedModules Int     @default(0)
   isCompleted      Boolean @default(false)
 
+  // ── Certification journey, past "all modules done" ──
+  // Practical project submission (a link/file the student submits once
+  // modules + quizzes are complete).
+  projectSubmissionUrl String?
+  projectSubmittedAt   DateTime?
+  // Set by whichever Mentor reviews the submission — nullable until then.
+  // Kept as a plain userId (not a relation) to avoid a second FK cycle on
+  // User; the mentors module already resolves userId -> Mentor elsewhere.
+  reviewedByUserId      String?
+  mentorFeedback        String?
+  certificateStatus      CertificateStatus @default(NOT_STARTED)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([userId, courseId])
   @@index([userId])
   @@map("course_progress")
+}
+
+enum CertificateStatus {
+  NOT_STARTED
+  IN_PROGRESS       // modules in progress
+  QUIZZES_PASSED     // all module quizzes passed, project not yet submitted
+  PROJECT_SUBMITTED  // awaiting mentor review
+  CHANGES_REQUESTED  // mentor sent it back
+  CERTIFIED          // mentor approved, Certificate issued
 }
 
 model Event {

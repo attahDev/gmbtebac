@@ -7,6 +7,7 @@ import {
   ConflictException,
   BadRequestException,
   NotFoundException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -67,7 +68,7 @@ export class AuthService {
     );
 
     // Send verification email
-    await this.mailService.sendVerificationEmail(
+    const emailSent = await this.mailService.sendVerificationEmail(
       user.email,
       user.firstname,
       otp.code,
@@ -87,8 +88,16 @@ export class AuthService {
     // Return user without password
     const { password, ...result } = user;
     return {
-      message:
-        'Registration successful. Please check your email for verification code.',
+      // The account is created either way — we don't want a flaky mail
+      // provider to block signup — but the message and emailSent flag
+      // tell the frontend whether to show "check your email" or "we
+      // couldn't send that, tap resend" so the person isn't left staring
+      // at an inbox that's never getting anything (see resendVerificationEmail
+      // below for the same fix on the resend path).
+      message: emailSent
+        ? 'Registration successful. Please check your email for verification code.'
+        : "Registration successful, but we couldn't send the verification email. Use the resend option to try again.",
+      emailSent,
       user: result,
       verification_token: verificationToken,
     };
@@ -290,11 +299,21 @@ export class AuthService {
     );
 
     // Send verification email
-    await this.mailService.sendVerificationEmail(
+    const emailSent = await this.mailService.sendVerificationEmail(
       user.email,
       user.firstname,
       otp.code,
     );
+
+    if (!emailSent) {
+      // This was the core bug: this endpoint always returned "sent
+      // successfully" even when the mailer threw, so a student hitting
+      // "resend" during an SMTP outage saw a false success message with
+      // no email ever arriving and no signal that anything was wrong.
+      throw new InternalServerErrorException(
+        "Couldn't send the verification email — please try again in a moment.",
+      );
+    }
 
     return { message: 'Verification email sent successfully' };
   }

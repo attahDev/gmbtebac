@@ -38,8 +38,14 @@ export class CoursesController {
     @CurrentUser() user: any,
     @Query('category') category?: string,
     @Query('includeInactive') includeInactive?: string,
+    @Query('school') school?: string,
   ) {
-    return this.coursesService.findAllWithProgress(user.userId, category, includeInactive === 'true');
+    return this.coursesService.findAllWithProgress(
+      user.userId,
+      category,
+      includeInactive === 'true',
+      school,
+    );
   }
 
   /** ?ids=a,b,c,d — one round trip for a course list page that used to fire
@@ -98,6 +104,57 @@ export class CoursesController {
     @Param('sectionId') sectionId: string,
   ) {
     return this.coursesService.toggleSection(user.userId, courseSlug, lessonSlug, sectionId);
+  }
+
+  /** Student submits answers for a 'quiz' section — graded server-side,
+   *  never trusts a client-sent score. */
+  @Post('by-slug/:courseSlug/modules/:lessonSlug/sections/:sectionId/submit-quiz')
+  submitQuiz(
+    @CurrentUser() user: any,
+    @Param('courseSlug') courseSlug: string,
+    @Param('lessonSlug') lessonSlug: string,
+    @Param('sectionId') sectionId: string,
+    @Body() body: { answers: Record<string, number> },
+  ) {
+    return this.coursesService.submitQuiz(
+      user.userId,
+      courseSlug,
+      lessonSlug,
+      sectionId,
+      body.answers ?? {},
+    );
+  }
+
+  /** Student submits their practical project (a link — GitHub repo, Drive
+   *  doc, deployed URL, whatever the School asks for). Requires modules
+   *  already complete; see CoursesService.submitProject. */
+  @Post('by-slug/:courseSlug/submit-project')
+  submitProject(
+    @CurrentUser() user: any,
+    @Param('courseSlug') courseSlug: string,
+    @Body() body: { submissionUrl: string },
+  ) {
+    return this.coursesService.submitProject(user.userId, courseSlug, body.submissionUrl);
+  }
+
+  /** Mentor approves/rejects a submitted project. Restricted to MENTOR and
+   *  ADMIN roles — approval is what issues the Certificate. */
+  @Post('by-slug/:courseSlug/review/:studentUserId')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.MENTOR, UserRole.ADMIN)
+  reviewProject(
+    @CurrentUser() user: any,
+    @Param('courseSlug') courseSlug: string,
+    @Param('studentUserId') studentUserId: string,
+    @Body() body: { approve: boolean; feedback?: string },
+  ) {
+    return this.coursesService.reviewProject(
+      user.userId,
+      studentUserId,
+      courseSlug,
+      body.approve,
+      body.feedback,
+    );
   }
 
   // ───────────────────────── Admin: upload-driven content ─────────────────────────

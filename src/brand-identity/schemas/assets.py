@@ -142,7 +142,7 @@ class QuotationInput(BrandColors):
     delivery_required:      Optional[bool]   = Field(None)
     packaging_required:     Optional[bool]   = Field(None)
     signature_section:      bool             = Field(True)
-    currency:               CurrencyOption   = CurrencyOption.NGN
+    currency:               CurrencyOption   = CurrencyOption.GBP
     templated_template_id:  Optional[str]    = Field(None)
 
 

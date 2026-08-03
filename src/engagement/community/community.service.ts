@@ -318,7 +318,7 @@ export class CommunityService {
 
   // ---------------- COMMENTS ----------------
 
-  async findComments(storyId: string) {
+  async findComments(storyId: string, userId?: string) {
     const post =
       await this.prisma.spotlightStory.findUnique({
         where: {
@@ -327,7 +327,9 @@ export class CommunityService {
       });
 
 
-    if (!post || post.status !== PostStatus.APPROVED) {
+    // Approved posts are public; a pending/rejected post's own author can
+    // still see their comment thread — only strangers get a 404 on it.
+    if (!post || (post.status !== PostStatus.APPROVED && post.userId !== userId)) {
       throw new NotFoundException('Post not found');
     }
 
@@ -375,7 +377,7 @@ export class CommunityService {
       });
 
 
-    if (!post || post.status !== PostStatus.APPROVED) {
+    if (!post || (post.status !== PostStatus.APPROVED && post.userId !== userId)) {
       throw new NotFoundException('Post not found');
     }
 
