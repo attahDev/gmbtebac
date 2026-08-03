@@ -1152,6 +1152,7 @@ enum NotificationCategory {
 enum PostStatus {
   PENDING
   APPROVED
+  FLAGGED
   REJECTED
 }
 
