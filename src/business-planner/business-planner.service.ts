@@ -204,10 +204,17 @@ Goal: ${payload.goal}`;
   }
 
   async getHistory(userId: string) {
-    return this.prisma.businessPlan.findMany({
+    const plans = await this.prisma.businessPlan.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
+
+    return {
+      success: true,
+      message: 'Business plan history retrieved successfully',
+      data: plans,
+      timestamp: new Date().toISOString(),
+    };
   }
 
   async getById(userId: string, planId: string) {
