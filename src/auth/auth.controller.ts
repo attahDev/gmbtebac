@@ -40,6 +40,9 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60 } })
   @HttpCode(HttpStatus.OK)
   async verifyEmail(@Body() dto: VerifyEmailDto) {
+    if (dto.verificationToken) {
+      return this.authservice.verifyEmailWithToken(dto, dto.verificationToken);
+    }
     return this.authservice.verifyEmail(dto);
   }
 
