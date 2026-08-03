@@ -329,7 +329,7 @@ export class CommunityService {
 
     // Approved posts are public; a pending/rejected post's own author can
     // still see their comment thread — only strangers get a 404 on it.
-    if (!post || (post.status !== PostStatus.APPROVED && post.userId !== userId)) {
+    if (!post || (post.status !== PostStatus.APPROVED && post.authorId !== userId)) {
       throw new NotFoundException('Post not found');
     }
 
@@ -377,7 +377,7 @@ export class CommunityService {
       });
 
 
-    if (!post || (post.status !== PostStatus.APPROVED && post.userId !== userId)) {
+    if (!post || (post.status !== PostStatus.APPROVED && post.authorId !== userId)) {
       throw new NotFoundException('Post not found');
     }
 
