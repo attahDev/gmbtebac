@@ -45,7 +45,6 @@ model User {
   verificationSessions VerificationSession[]
   mentorChats          MentorChat[]
   businessPlans        BusinessPlan[]
-  comments Comment[]
 
   brandAssets          BrandAsset[]
   chatSessions         ChatSession[]
@@ -422,6 +421,7 @@ model Mentor {
   updatedAt DateTime @updatedAt
 
   connections MentorConnection[]
+  spotlights  MentorSpotlight[]
   s  Mentor[]
 
   @@index([isActive])
