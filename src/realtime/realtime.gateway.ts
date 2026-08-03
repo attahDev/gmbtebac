@@ -24,6 +24,7 @@ import { PrismaService } from '../prisma/prisma.service';
   cors: {
     origin: [
       'https://www.gmblacktechexpo.co.uk',
+      'https://frogmbte.vercel.app'
     ],
     credentials: true,
   },

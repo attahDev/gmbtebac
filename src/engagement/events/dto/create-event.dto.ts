@@ -26,6 +26,23 @@ export class CreateEventDto {
   @IsString()
   link?: string;
 
+  // Admin pastes an existing partner-hosted Eventbrite event's URL or raw
+  // ID — extracted server-side via EventbriteService.extractEventId. Only
+  // set this OR publishToEventbrite, not both — a GMBTE event is either
+  // linked to someone else's existing Eventbrite listing, or dual-listed
+  // as a brand-new one under GMBTE's own organizer account, never both.
+  @IsOptional()
+  @IsString()
+  eventbriteUrl?: string;
+
+  // When true, EventsService also publishes this event under GMBTE's own
+  // Eventbrite organizer account right after creating it locally, and
+  // stores the returned event ID/URL back onto the row. No-ops (logged,
+  // non-fatal) if GMBTE has no Eventbrite organizer credentials set.
+  @IsOptional()
+  @IsBoolean()
+  publishToEventbrite?: boolean;
+
   @IsDateString()
   startsAt: string;
 

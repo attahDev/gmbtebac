@@ -1,4 +1,10 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { firstValueFrom } from 'rxjs';
@@ -202,6 +208,55 @@ Goal: ${payload.goal}`;
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async getById(userId: string, planId: string) {
+    const plan = await this.prisma.businessPlan.findUnique({
+      where: { id: planId },
+    });
+
+    if (!plan) {
+      throw new NotFoundException('Business plan not found');
+    }
+
+    if (plan.userId !== userId) {
+      throw new ForbiddenException(
+        'You do not have access to this business plan',
+      );
+    }
+
+    return plan;
+  }
+
+  async updateProgress(
+    userId: string,
+    planId: string,
+    completedActionIndexes: number[],
+  ) {
+    const plan = await this.prisma.businessPlan.findUnique({
+      where: { id: planId },
+    });
+
+    if (!plan) {
+      throw new NotFoundException('Business plan not found');
+    }
+
+    if (plan.userId !== userId) {
+      throw new ForbiddenException(
+        'You do not have access to this business plan',
+      );
+    }
+
+    const updated = await this.prisma.businessPlan.update({
+      where: { id: planId },
+      data: { completedActionIndexes },
+    });
+
+    return {
+      success: true,
+      planId: updated.id,
+      completedActionIndexes: updated.completedActionIndexes,
+    };
   }
 
   async healthCheck() {

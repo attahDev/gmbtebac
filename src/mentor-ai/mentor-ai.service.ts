@@ -8,6 +8,7 @@ import { AxiosError, AxiosResponse } from 'axios';
 import { sanitizeAiText } from 'src/common/sanitize-ai-text';
 import { searchWeb, formatWebResultsForPrompt } from 'src/common/tavily-search';
 import { ActivityService } from 'src/engagement/activity/activity.service';
+import { isIdentityQuestion, samIdentityAnswer } from './sam-identity';
 
 // ─── Types ─────────────────────────────────────────────────────────────
 type ChatRole = 'user' | 'assistant';
@@ -56,6 +57,7 @@ export class MentorAiService {
     userId: string,
     message: string,
     chatId?: string,
+    persona: 'sam' | 'business_mentor' = 'business_mentor',
   ): Promise<{ chatId: string; reply: string }> {
     if (!message?.trim()) {
       throw new BadRequestException('Message is required');
@@ -83,6 +85,31 @@ export class MentorAiService {
       },
     });
 
+    // Direct identity questions never hit the AI provider — for Sam (the
+    // standalone My Mentor page) they're answered instantly and on-brand.
+    // The Business Studio widget keeps its original unnamed behavior.
+    if (persona === 'sam' && isIdentityQuestion(message)) {
+      const answer = samIdentityAnswer();
+
+      const assistantMessage = await this.prisma.mentorMessage.create({
+        data: {
+          chatId: chat.id,
+          role: 'ASSISTANT',
+          content: answer,
+        },
+      });
+
+      await this.prisma.mentorChat.update({
+        where: { id: chat.id },
+        data: {},
+      });
+
+      return {
+        chatId: chat.id,
+        reply: assistantMessage.content,
+      };
+    }
+
     // 3. Build AI‑ready history (limited length)
     const history = await this.buildHistory(chat.id);
 
@@ -99,10 +126,50 @@ export class MentorAiService {
     });
 
     this.logger.log(`Chat ${chat.id}: replied successfully`);
+
+    // @updatedAt only bumps when the MentorChat row itself is written, not
+    // when related messages are created — touch it so listChats() sorts by
+    // actual last-activity instead of just creation time.
+    await this.prisma.mentorChat.update({
+      where: { id: chat.id },
+      data: {},
+    });
+
     return {
       chatId: chat.id,
       reply: assistantMessage.content,
     };
+  }
+
+  // ─── Resuming past conversations ──────────────────────────────────────
+
+  /** Chats for the sidebar/history list — title + most recent activity,
+   *  no message bodies (keep the list call cheap). */
+  async listChats(userId: string) {
+    return this.prisma.mentorChat.findMany({
+      where: { userId },
+      orderBy: { updatedAt: 'desc' },
+      select: { id: true, title: true, createdAt: true, updatedAt: true },
+    });
+  }
+
+  /** Full message history for one chat, so the frontend can hydrate the
+   *  conversation instead of always starting the UI from a blank slate. */
+  async getChat(userId: string, chatId: string) {
+    const chat = await this.prisma.mentorChat.findFirst({
+      where: { id: chatId, userId },
+      include: {
+        messages: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!chat) {
+      throw new BadRequestException('Chat not found');
+    }
+
+    return chat;
   }
 
   // ─── Private helpers ─────────────────────────────────────────────────

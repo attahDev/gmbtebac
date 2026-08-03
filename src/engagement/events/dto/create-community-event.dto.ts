@@ -27,6 +27,14 @@ export class CreateCommunityEventDto {
   @IsString()
   link?: string;
 
+  // Same as CreateEventDto.eventbriteUrl — a member hosting their own
+  // event on Eventbrite can link it here. No publishToEventbrite option
+  // for community submissions: auto-publishing under GMBTE's own
+  // Eventbrite organizer account stays admin-only.
+  @IsOptional()
+  @IsString()
+  eventbriteUrl?: string;
+
   @IsDateString()
   startsAt: string;
 

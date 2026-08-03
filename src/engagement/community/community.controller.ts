@@ -44,8 +44,8 @@ export class CommunityController {
     return this.communityService.unlike(user.userId, id);
   }
 
-  /** Multipart: title, description, optional `image` file field. Always
-   *  created PENDING — goes live once an admin approves it. */
+  /** Multipart: title, description, optional `image` file field. Publishes
+   *  immediately; the moderation bot flags it after the fact if needed. */
   @Post('posts')
   @UseInterceptors(FileInterceptor('image', { limits: { fileSize: 15 * 1024 * 1024 } }))
   createPost(
@@ -59,8 +59,8 @@ export class CommunityController {
   }
 
   @Get('spotlight/:id/comments')
-  findComments(@CurrentUser() user: any, @Param('id') id: string) {
-    return this.communityService.findComments(id, user?.userId);
+  findComments(@Param('id') id: string) {
+    return this.communityService.findComments(id);
   }
 
   @Post('spotlight/:id/comments')
@@ -79,7 +79,7 @@ export class CommunityController {
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
   findPending() {
-    return this.communityService.findPending();
+    return this.communityService.findFlagged();
   }
 
   @Patch('admin/:id/approve')
@@ -89,11 +89,11 @@ export class CommunityController {
     return this.communityService.approve(id);
   }
 
-  @Patch('admin/:id/reject')
+  @Delete('admin/:id')
   @UseGuards(RolesGuard)
   @Roles(UserRole.ADMIN)
-  reject(@Param('id') id: string, @Body('reason') reason?: string) {
-    return this.communityService.reject(id, reason);
+  deleteFlaggedPost(@Param('id') id: string, @Body('reason') reason?: string) {
+    return this.communityService.deleteFlaggedPost(id, reason);
   }
 
   @Delete('admin/comments/:id')
@@ -101,5 +101,19 @@ export class CommunityController {
   @Roles(UserRole.ADMIN)
   deleteCommentAdmin(@Param('id') id: string) {
     return this.communityService.deleteCommentAdmin(id);
+  }
+
+  @Get('admin/comments/flagged')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  findFlaggedComments() {
+    return this.communityService.findFlaggedComments();
+  }
+
+  @Patch('admin/comments/:id/approve')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  approveComment(@Param('id') id: string) {
+    return this.communityService.approveComment(id);
   }
 }

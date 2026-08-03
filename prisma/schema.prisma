@@ -232,6 +232,11 @@ model BusinessPlan {
 
   aiResponse Json
 
+  // Indexes into aiResponse.data.next_actions that the user has checked off.
+  // Kept separate from aiResponse so the AI-generated content stays immutable
+  // and we don't need to rewrite the whole JSON blob on every checkbox click.
+  completedActionIndexes Int[] @default([])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -329,10 +334,36 @@ model ChatMessage {
   aiStatus   String?
   aiRawReply Json?
 
+  // Populated only for BOT messages when Nora's reply maps to a specific
+  // in-app page (e.g. "/dashboard/opportunities") — frontend renders it as
+  // a clickable button under the reply instead of forcing the user to
+  // guess where to navigate.
+  suggestedRoute String?
+
   createdAt DateTime @default(now())
 
   @@index([sessionId])
   @@map("chat_messages")
+}
+
+// Curated narrative platform knowledge for Nora (the main platform chatbot) —
+// things like "how mentorship works here" that aren't sitting in a table
+// the way jobs/events/courses are. Admin-maintained; kept deliberately small
+// and hand-written rather than auto-generated, so Nora's account of "how the
+// platform works" stays accurate and on-brand.
+model KnowledgeArticle {
+  id String @id @default(uuid())
+
+  title    String
+  body     String
+  category String? // e.g. "mentorship", "fellowship", "getting-started"
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("knowledge_articles")
 }
 
 enum ChatVisitorType {
@@ -756,6 +787,22 @@ model Event {
   // etc. Purely optional so events with no online component (walk-in
   // workshops) don't need one.
   link        String?
+
+  // ── Eventbrite linkage (optional) ──
+  // Set either by an admin pasting an existing partner-hosted Eventbrite
+  // event's URL/ID (extracted server-side, see EventbriteService), or
+  // automatically after createEventOnEventbrite() publishes a brand-new
+  // event under GMBTE's own Eventbrite organizer account. A plain GMBTE
+  // event (no partner, not dual-listed) leaves this null — the Eventbrite
+  // fields never show up in the admin/member UI for those.
+  eventbriteEventId     String?
+  // Cached from the last sync (webhook or manual "Sync now") rather than
+  // fetched live on every request — Eventbrite's attendee-count endpoint
+  // requires the organizer's private token and isn't always available for
+  // partner events, so this can legitimately stay null.
+  eventbriteAttendeeCount Int?
+  eventbriteSyncedAt      DateTime?
+
   startsAt    DateTime
   endsAt      DateTime?
   isActive    Boolean   @default(true)
@@ -830,6 +877,16 @@ model EventAttendance {
   event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   status String @default("REGISTERED")
+
+  // True when this row was created automatically from an Eventbrite
+  // "order placed" webhook (someone completed the embedded Eventbrite
+  // checkout) rather than a native GMBTE RSVP click. Lets the admin
+  // attendee list show where each registration actually came from.
+  viaEventbrite         Boolean @default(false)
+  // Eventbrite's own attendee ID — used to dedupe webhook deliveries
+  // (Eventbrite retries on failure) and to match a webhook back to this
+  // row on repeat sync.
+  eventbriteAttendeeId  String? @unique
 
   createdAt DateTime @default(now())
 

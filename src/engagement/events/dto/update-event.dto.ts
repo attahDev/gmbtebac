@@ -8,6 +8,7 @@ export class UpdateEventDto {
   @IsOptional() @IsString() imageUrl?: string;
   @IsOptional() @IsString() mode?: string;
   @IsOptional() @IsString() link?: string;
+  @IsOptional() @IsString() eventbriteUrl?: string;
   @IsOptional() @IsDateString() startsAt?: string;
   @IsOptional() @IsDateString() endsAt?: string;
   @IsOptional() @IsBoolean() isActive?: boolean;

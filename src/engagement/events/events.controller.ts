@@ -14,6 +14,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { ConfigService } from '@nestjs/config';
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
 import { RolesGuard } from '../../guards/roles.guard';
@@ -23,10 +24,14 @@ import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { CreateCommunityEventDto } from './dto/create-community-event.dto';
+import { UpdateCommunityEventDto } from './dto/update-community-event.dto';
 
 @Controller('events')
 export class EventsController {
-  constructor(private eventsService: EventsService) {}
+  constructor(
+    private eventsService: EventsService,
+    private config: ConfigService,
+  ) {}
 
   /** Public — the marketing site's Events page calls this unauthenticated. */
   @Get()
@@ -70,12 +75,89 @@ export class EventsController {
     return this.eventsService.findMySubmissions(user.userId);
   }
 
+  /** "My Events" → Hosting → Edit. Ownership is enforced in
+   *  EventsService.updateMySubmission, not here — the guard only proves
+   *  who's calling, not which event they're allowed to touch. Editing
+   *  resets the event back to PENDING review; see the service method for
+   *  why. Multipart, same shape as submitCommunityEvent below, so a new
+   *  photo can be swapped in without a separate endpoint. */
+  @Patch('community/mine/:id')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('image', { limits: { fileSize: 15 * 1024 * 1024 } }))
+  updateMySubmission(
+    @CurrentUser() user: any,
+    @Param('id') id: string,
+    @Body() body: Record<string, string>,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    const dto: UpdateCommunityEventDto = {
+      title: body.title || undefined,
+      description: body.description || undefined,
+      location: body.location || undefined,
+      mode: body.mode || undefined,
+      link: body.link || undefined,
+      eventbriteUrl: body.eventbriteUrl || undefined,
+      startsAt: body.startsAt || undefined,
+      endsAt: body.endsAt || undefined,
+      tags: body.tags
+        ? body.tags.split(',').map((t) => t.trim()).filter(Boolean)
+        : undefined,
+    };
+    return this.eventsService.updateMySubmission(id, user.userId, dto, file);
+  }
+
+  /** "My Events" → Hosting → Withdraw. Hard-deletes — see
+   *  EventsService.withdrawMySubmission for what that means for existing
+   *  RSVPs. */
+  @Delete('community/mine/:id')
+  @UseGuards(JwtAuthGuard)
+  withdrawMySubmission(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.eventsService.withdrawMySubmission(id, user.userId);
+  }
+
   /** Single event, for a detail modal/page. Public — same reasoning as
    *  findUpcoming above. Registered after the static 'all'/'past'/'mine'
    *  paths above so those aren't swallowed as :id values. */
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.eventsService.findOne(id);
+  }
+
+  /** Admin's "expected invitees" list — everyone who's RSVP'd through
+   *  GMBTE for this event, regardless of whether it links out to
+   *  Eventbrite. Static path segment, registered before the admin ':id'
+   *  routes below for the same reason as findOne above. */
+  @Get('admin/:id/attendees')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  findAttendees(@Param('id') id: string) {
+    return this.eventsService.findAttendees(id);
+  }
+
+  /** Admin's "Sync now" button on the attendees modal — pulls a fresh
+   *  confirmed-attendee count from Eventbrite for a linked event. */
+  @Post('admin/:id/eventbrite/sync')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  syncEventbriteAttendees(@Param('id') id: string) {
+    return this.eventsService.syncEventbriteAttendees(id);
+  }
+
+  /** Eventbrite's webhook callback — fires when someone completes checkout
+   *  on the embedded Eventbrite widget for a linked event ("order.placed").
+   *  Deliberately unauthenticated (Eventbrite can't send a JWT), so the
+   *  secret path segment is what stands in for auth here — configure the
+   *  same value as EVENTBRITE_WEBHOOK_SECRET both here and in Eventbrite's
+   *  webhook settings for this endpoint's full URL. Always 200s (even on a
+   *  wrong secret or unresolvable payload) since Eventbrite retries
+   *  aggressively on non-2xx and there's nothing actionable to retry here. */
+  @Post('webhooks/eventbrite/:secret')
+  async eventbriteWebhook(@Param('secret') secret: string, @Body() payload: { api_url?: string }) {
+    const expected = this.config.get<string>('EVENTBRITE_WEBHOOK_SECRET');
+    if (!expected || secret !== expected) {
+      return { ok: true };
+    }
+    return this.eventsService.handleEventbriteWebhook(payload);
   }
 
   /** "Host an Event" — any authenticated member can submit one. No
@@ -95,6 +177,7 @@ export class EventsController {
     @Body('location') location: string,
     @Body('mode') mode: string,
     @Body('link') link: string,
+    @Body('eventbriteUrl') eventbriteUrl: string,
     @Body('startsAt') startsAt: string,
     @Body('endsAt') endsAt: string,
     @Body('tags') tagsText: string,
@@ -110,6 +193,7 @@ export class EventsController {
       location: location || undefined,
       mode: mode || undefined,
       link: link || undefined,
+      eventbriteUrl: eventbriteUrl || undefined,
       startsAt,
       endsAt: endsAt || undefined,
       tags: tagsText
@@ -124,6 +208,15 @@ export class EventsController {
   @UseGuards(JwtAuthGuard)
   rsvp(@CurrentUser() user: any, @Param('id') eventId: string) {
     return this.eventsService.rsvp(user.userId, eventId);
+  }
+
+  /** "My Events" → Attending → Cancel RSVP. Only clears the REGISTERED row
+   *  in GMBTE's own record — see EventsService.cancelRsvp for the
+   *  Eventbrite caveat. */
+  @Delete(':id/rsvp')
+  @UseGuards(JwtAuthGuard)
+  cancelRsvp(@CurrentUser() user: any, @Param('id') eventId: string) {
+    return this.eventsService.cancelRsvp(user.userId, eventId);
   }
 
   @Post(':id/save')
@@ -181,6 +274,8 @@ export class EventsController {
       imageUrl: body.imageUrl || undefined,
       mode: body.mode || undefined,
       link: body.link || undefined,
+      eventbriteUrl: body.eventbriteUrl || undefined,
+      publishToEventbrite: parseBoolean(body.publishToEventbrite, false),
       startsAt: body.startsAt,
       endsAt: body.endsAt || undefined,
       isActive: parseBoolean(body.isActive, true),

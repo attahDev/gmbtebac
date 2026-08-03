@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { sanitizeAiText } from 'src/common/sanitize-ai-text';
 import { ActivityService } from 'src/engagement/activity/activity.service';
+import { isIdentityQuestion, pelumiIdentityAnswer, applyPelumiVoice } from './pelumi-identity';
 
 interface HofApiResponse {
   answer?: string;
@@ -30,6 +31,12 @@ export class HofAiService {
   async chat(message: string, userId?: string): Promise<{ reply: string }> {
     if (!message?.trim()) {
       throw new BadRequestException('Message is required');
+    }
+
+    // Direct identity questions skip the Space entirely — it has no
+    // concept of "Pelumi", so answer on-brand without a round trip.
+    if (isIdentityQuestion(message)) {
+      return { reply: pelumiIdentityAnswer() };
     }
 
     try {
@@ -67,7 +74,12 @@ export class HofAiService {
         );
       }
 
-      return { reply: sanitizeAiText(reply) };
+      // The Space gives us the facts; Pelumi's voice pass makes it sound
+      // like her without touching any of the actual content.
+      const factual = sanitizeAiText(reply);
+      const voiced = await applyPelumiVoice(factual);
+
+      return { reply: voiced };
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
       this.logger.error('Hall of Fame AI call failed', error as Error);

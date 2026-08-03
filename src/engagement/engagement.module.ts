@@ -27,6 +27,7 @@ import { CoursesController } from './courses/courses.controller';
 
 import { EventsService } from './events/events.service';
 import { EventsController } from './events/events.controller';
+import { EventbriteService } from './events/eventbrite.service';
 
 import { NewsService } from './news/news.service';
 import { NewsController } from './news/news.controller';
@@ -34,6 +35,7 @@ import { NewsController } from './news/news.controller';
 import { CommunityService } from './community/community.service';
 import { CommunityController } from './community/community.controller';
 import { CommunityCleanupService } from './community/community-cleanup.service';
+import { ModerationService } from './community/moderation.service';
 
 import { DashboardService } from './dashboard/dashboard.service';
 import { DashboardController } from './dashboard/dashboard.controller';
@@ -116,11 +118,13 @@ import { BadgesController } from './badges/badges.controller';
     PdfExtractionService,
 
     EventsService,
+    EventbriteService,
 
     NewsService,
 
     CommunityService,
     CommunityCleanupService,
+    ModerationService,
 
     DashboardService,
 
