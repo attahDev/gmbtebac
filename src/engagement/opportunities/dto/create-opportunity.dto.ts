@@ -27,6 +27,13 @@ export class CreateOpportunityDto {
   @IsString()
   type?: string;
 
+  // Restricts this opportunity to holders of a specific School's
+  // certification (e.g. "aws"). Omit for open-to-everyone.
+  @ApiPropertyOptional({ example: 'aws' })
+  @IsOptional()
+  @IsString()
+  requiredSchool?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

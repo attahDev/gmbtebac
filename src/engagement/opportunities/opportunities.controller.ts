@@ -4,6 +4,7 @@ import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '../../guards/jwt-auth.guard';
 import { RolesGuard } from '../../guards/roles.guard';
 import { Roles } from '../../decorators/roles.decorator';
+import { CurrentUser } from '../../decorators/current-user.decorator';
 import { OpportunitiesService } from './opportunities.service';
 import { OpportunitiesSyncService } from './opportunities-sync.service';
 import { CreateOpportunityDto } from './dto/create-opportunity.dto';
@@ -25,17 +26,47 @@ export class OpportunitiesController {
    *  featured Events/Courses. ?includeInactive=true — used by the admin
    *  table, so a removed opportunity is still visible (and restorable)
    *  instead of just vanishing. */
+  /** Powers the Opportunities page. ?search= matches title/company/description,
+   *  ?category= filters to one category (e.g. "Jobs", "Grants", "Internships").
+   *  ?school= filters to opportunities requiring a specific Academy School's
+   *  certification. ?eligibleOnly=true additionally drops any requiredSchool
+   *  row the caller hasn't earned a Certificate for (rows with no
+   *  requiredSchool always show). Featured rows (manual or API) are always
+   *  pinned first — same pattern as featured Events/Courses.
+   *  ?includeInactive=true — used by the admin table, so a removed
+   *  opportunity is still visible (and restorable) instead of just
+   *  vanishing. */
   @Get()
   @ApiOperation({ summary: 'Search and filter opportunities' })
   @ApiQuery({ name: 'search', required: false, description: 'Matches title/company/description' })
   @ApiQuery({ name: 'category', required: false, example: 'Jobs' })
+  @ApiQuery({ name: 'school', required: false, description: 'Filter by required Academy School, e.g. "aws"' })
+  @ApiQuery({ name: 'eligibleOnly', required: false, description: 'Only show rows the caller is certified for' })
   @ApiQuery({ name: 'includeInactive', required: false, description: 'Admin table: include removed rows' })
   findAll(
+    @CurrentUser() user: any,
     @Query('search') search?: string,
     @Query('category') category?: string,
+    @Query('school') school?: string,
+    @Query('eligibleOnly') eligibleOnly?: string,
     @Query('includeInactive') includeInactive?: string,
   ) {
-    return this.opportunitiesService.findAll({ search, category, includeInactive: includeInactive === 'true' });
+    return this.opportunitiesService.findAll({
+      search,
+      category,
+      school,
+      includeInactive: includeInactive === 'true',
+      eligibleOnly: eligibleOnly === 'true',
+      userId: user?.userId,
+    });
+  }
+
+  /** Distinct requiredSchool list, for a "By Certification" filter dropdown —
+   *  same derive-from-data pattern as findCategories. */
+  @Get('schools')
+  @ApiOperation({ summary: 'List distinct required Schools for filter chips/dropdown' })
+  findSchools() {
+    return this.opportunitiesService.findSchools();
   }
 
   /** Distinct category list, for the filter chips/dropdown — derived from

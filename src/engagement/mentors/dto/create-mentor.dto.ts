@@ -34,4 +34,10 @@ export class CreateMentorDto {
   @IsString()
   @IsNotEmpty()
   category?: string;
+
+  // Schools this mentor may review certification projects for. Omit/empty = unrestricted.
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  schools?: string[];
 }

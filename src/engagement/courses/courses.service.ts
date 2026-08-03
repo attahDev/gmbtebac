@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ActivityService } from '../activity/activity.service';
@@ -339,6 +339,22 @@ export class CoursesService {
     });
     if (cp?.certificateStatus !== 'PROJECT_SUBMITTED') {
       throw new NotFoundException('No project awaiting review for this course');
+    }
+
+    // Reviewer-matching gate: a mentor with a `schools` allowlist can only
+    // review projects for those Schools. No Mentor row (e.g. an admin
+    // reviewing directly) or an empty `schools` array = unrestricted, so
+    // this is opt-in per mentor rather than a blocking default.
+    if (course.school) {
+      const reviewer = await this.prisma.mentor.findUnique({
+        where: { userId: mentorUserId },
+        select: { schools: true },
+      });
+      if (reviewer && reviewer.schools.length > 0 && !reviewer.schools.includes(course.school)) {
+        throw new ForbiddenException(
+          `You're not assigned to review ${course.school} projects`,
+        );
+      }
     }
 
     await this.prisma.courseProgress.update({

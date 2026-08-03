@@ -368,6 +368,13 @@ model Mentor {
   skills    String[]
   isActive  Boolean @default(true)
 
+  // Academy Schools this mentor is authorised to review certification
+  // projects for (e.g. "aws", "microsoft"). Free text, matches Course.school.
+  // Empty array = unrestricted: can review any School's project — this is
+  // the default so existing mentors keep working until an admin opts them
+  // into a restriction. Deliberately not an enum, same reasoning as `category`.
+  schools String[] @default([])
+
   // Admin-assigned grouping used to sort/filter the mentor directory
   // (e.g. "Engineering", "Design", "Product"). Free text on purpose —
   // no fixed enum — so admins aren't blocked waiting on a code change
@@ -450,6 +457,11 @@ model Opportunity {
   location    String?
   type        String?
 
+  // Filters this opportunity to holders of a specific Academy certification
+  // (matches Course.school, e.g. "aws"). Null = open to everyone, same
+  // "unrestricted by default" pattern as Mentor.schools.
+  requiredSchool String?
+
   source      String   @default("MANUAL")
 
   provider    String?
@@ -466,6 +478,7 @@ model Opportunity {
   @@unique([provider, externalId], name: "provider_externalId")
 
   @@index([category])
+  @@index([requiredSchool])
   @@index([isFeatured])
   @@index([isActive])
 

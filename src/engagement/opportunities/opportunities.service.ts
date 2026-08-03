@@ -9,6 +9,11 @@ type FindAllOptions = {
   search?: string;
   category?: string;
   includeInactive?: boolean;
+  school?: string;
+  /** When true, drop rows whose requiredSchool the caller hasn't been
+   *  certified in. Requires userId. Rows with no requiredSchool always pass. */
+  eligibleOnly?: boolean;
+  userId?: string;
 };
 
 @Injectable()
@@ -18,11 +23,15 @@ export class OpportunitiesService {
     private realtime: RealtimeGateway,
   ) {}
 
-  async findAll({ search, category, includeInactive }: FindAllOptions = {}) {
+  async findAll({ search, category, includeInactive, school, eligibleOnly, userId }: FindAllOptions = {}) {
     const where: Prisma.OpportunityWhereInput = includeInactive ? {} : { isActive: true };
 
     if (category) {
       where.category = category;
+    }
+
+    if (school) {
+      where.requiredSchool = school;
     }
 
     if (search?.trim()) {
@@ -36,10 +45,30 @@ export class OpportunitiesService {
 
     // Featured first (manual or API-sourced), then most recently posted —
     // mirrors Event.isFeatured / Course.isFeatured sort order.
-    return this.prisma.opportunity.findMany({
+    const opportunities = await this.prisma.opportunity.findMany({
       where,
       orderBy: [{ isFeatured: 'desc' }, { postedAt: 'desc' }],
     });
+
+    if (!eligibleOnly || !userId) return opportunities;
+
+    // "By Certification" filter: only keep rows with no requiredSchool, or
+    // whose requiredSchool the caller has an earned Certificate for.
+    const earned = await this.prisma.certificate.findMany({
+      where: { userId },
+      select: { course: { select: { school: true } } },
+    });
+    const earnedSchools = new Set(earned.map((c) => c.course.school).filter(Boolean));
+    return opportunities.filter((o) => !o.requiredSchool || earnedSchools.has(o.requiredSchool));
+  }
+
+  async findSchools() {
+    const rows = await this.prisma.opportunity.findMany({
+      where: { isActive: true, requiredSchool: { not: null } },
+      select: { requiredSchool: true },
+      distinct: ['requiredSchool'],
+    });
+    return rows.map((r) => r.requiredSchool).filter(Boolean).sort();
   }
 
   async findCategories() {

@@ -248,6 +248,7 @@ export class MentorsService {
         skills: dto.skills ?? [],
         isActive: dto.isActive ?? true,
         category: dto.category?.trim() || 'General',
+        schools: dto.schools ?? [],
       },
     });
     this.realtime.broadcast('mentors:updated');
@@ -269,6 +270,7 @@ export class MentorsService {
         ...(dto.skills !== undefined && { skills: dto.skills }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
         ...(dto.category !== undefined && { category: dto.category.trim() || 'General' }),
+        ...(dto.schools !== undefined && { schools: dto.schools }),
       },
     });
     this.realtime.broadcast('mentors:updated');
