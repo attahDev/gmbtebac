@@ -422,7 +422,6 @@ model Mentor {
 
   connections MentorConnection[]
   spotlights  MentorSpotlight[]
-  s  Mentor[]
 
   @@index([isActive])
   @@map("mentors")
