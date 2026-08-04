@@ -89,6 +89,3 @@ export async function buildPlatformContext(prisma: PrismaService): Promise<strin
 export async function buildDigitalTrustContext(prisma: PrismaService): Promise<string> {
   return fetchCuratedKnowledge(prisma, 'digital-trust');
 }
-
-  return [structured, curated].filter(Boolean).join('\n\n');
-}
