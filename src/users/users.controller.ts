@@ -40,6 +40,11 @@ export class UsersController {
     return this.usersService.updateSettings(user.userId, updateData);
   }
 
+  @Get('session')
+  getActiveSession(@CurrentUser() user: any) {
+    return this.usersService.getActiveSession(user.userId);
+  }
+
   @Put('change-password')
   changePassword(
     @CurrentUser() user: any,

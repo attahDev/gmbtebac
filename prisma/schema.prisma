@@ -48,6 +48,7 @@ model User {
 
   brandAssets          BrandAsset[]
   chatSessions         ChatSession[]
+  concerns             Concern[]
 
   mentorConnections     MentorConnection[]
   mentorProfile         Mentor?
@@ -178,6 +179,38 @@ model ContactMessage {
   @@map("contact_messages")
 }
 
+model Concern {
+  id String @id @default(uuid())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  concernType  ConcernType
+  description  String
+  contactEmail String? // optional contact-back, works for anonymous reporters too
+  status       ConcernStatus @default(OPEN)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("concerns")
+}
+
+enum ConcernType {
+  DATA_PRIVACY
+  AI_RECOMMENDATION
+  SAFETY
+  OTHER
+}
+
+enum ConcernStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+}
+
 model MentorChat {
   id     String @id @default(uuid())
   userId String
@@ -235,6 +268,13 @@ model BusinessPlan {
   // Kept separate from aiResponse so the AI-generated content stays immutable
   // and we don't need to rewrite the whole JSON blob on every checkbox click.
   completedActionIndexes Int[] @default([])
+
+  // Which Roadmap checklist items the user has checked off, keyed as
+  // "<phaseIndex>-<itemIndex>" (e.g. "0-2") since the roadmap's phases
+  // come from the linked Idea's content and can have a variable number of
+  // items per phase — a flat Int[] like completedActionIndexes wouldn't be
+  // enough to disambiguate which phase an index belongs to.
+  completedRoadmapItems String[] @default([])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -307,6 +347,7 @@ model ChatSession {
 
   visitorType ChatVisitorType @default(UNKNOWN)
   status      ChatSessionStatus @default(OPEN)
+  persona     ChatPersona @default(NORA)
 
   title String?
 
@@ -363,6 +404,11 @@ model KnowledgeArticle {
 
   @@index([isActive])
   @@map("knowledge_articles")
+}
+
+enum ChatPersona {
+  NORA
+  DIGITAL_TRUST
 }
 
 enum ChatVisitorType {

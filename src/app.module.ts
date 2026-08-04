@@ -14,6 +14,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { MentorAiModule } from './mentor-ai/mentor-ai.module';
 import { BusinessPlannerModule } from './business-planner/business-planner.module';
 import { ChatbotModule } from './chatbot/chatbot.module';
+import { ConcernModule } from './concern/concern.module';
 import { BrandIdentityModule } from './brand-identity/brand-identity.module';
 import { EngagementModule } from './engagement/engagement.module';
 import { UploadsModule } from './uploads/uploads.module';
@@ -47,6 +48,7 @@ import { RealtimeModule } from './realtime/realtime.module';
     MentorAiModule,
     BusinessPlannerModule,
     ChatbotModule,
+    ConcernModule,
     BrandIdentityModule,
     EngagementModule,
     UploadsModule,

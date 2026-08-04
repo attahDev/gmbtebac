@@ -266,6 +266,37 @@ Goal: ${payload.goal}`;
     };
   }
 
+  async updateRoadmapProgress(
+    userId: string,
+    planId: string,
+    completedRoadmapItems: string[],
+  ) {
+    const plan = await this.prisma.businessPlan.findUnique({
+      where: { id: planId },
+    });
+
+    if (!plan) {
+      throw new NotFoundException('Business plan not found');
+    }
+
+    if (plan.userId !== userId) {
+      throw new ForbiddenException(
+        'You do not have access to this business plan',
+      );
+    }
+
+    const updated = await this.prisma.businessPlan.update({
+      where: { id: planId },
+      data: { completedRoadmapItems },
+    });
+
+    return {
+      success: true,
+      planId: updated.id,
+      completedRoadmapItems: updated.completedRoadmapItems,
+    };
+  }
+
   async healthCheck() {
     try {
       const response = await firstValueFrom(

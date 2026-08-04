@@ -3,9 +3,9 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { SendChatMessageDto } from './dto/send-chat-message.dto';
-import { ChatSender, ChatVisitorType } from '@prisma/client';
+import { ChatSender, ChatVisitorType, ChatPersona } from '@prisma/client';
 import { isIdentityQuestion, noraIdentityAnswer } from 'src/common/rewrite-bot-identity';
-import { buildPlatformContext } from './platform-context';
+import { buildPlatformContext, buildDigitalTrustContext } from './platform-context';
 
 const GROQ_MODEL = process.env.GROQ_NORA_MODEL || 'openai/gpt-oss-120b';
 const MAX_HISTORY_MESSAGES = 12;
@@ -49,6 +49,7 @@ export class ChatbotService {
         data: {
           userId: userId || undefined,
           visitorType: payload.visitorType || ChatVisitorType.UNKNOWN,
+          persona: payload.persona || ChatPersona.NORA,
           title: payload.message.slice(0, 60),
         },
       });
@@ -76,7 +77,9 @@ export class ChatbotService {
     });
 
     // Identity questions never hit the model — answered directly as Nora.
-    if (isIdentityQuestion(payload.message)) {
+    // Only applies to the Nora persona; the Digital Trust persona has its
+    // own identity and shouldn't get Nora's canned answer.
+    if (session.persona === ChatPersona.NORA && isIdentityQuestion(payload.message)) {
       const answer = noraIdentityAnswer();
       await this.prisma.chatMessage.create({
         data: { sessionId, sender: ChatSender.BOT, content: answer, aiStatus: 'success' },
@@ -85,7 +88,7 @@ export class ChatbotService {
     }
 
     try {
-      const { reply, suggestedRoute } = await this.callGroq(session.messages, payload.message);
+      const { reply, suggestedRoute } = await this.callGroq(session.messages, payload.message, session.persona);
 
       await this.prisma.chatMessage.create({
         data: {
@@ -114,19 +117,9 @@ export class ChatbotService {
     }
   }
 
-  private async callGroq(
-    history: { sender: ChatSender; content: string }[],
-    latestMessage: string,
-  ): Promise<{ reply: string; suggestedRoute: string | null }> {
-    const apiKey = process.env.GROQ_API_KEY;
-    if (!apiKey) throw new Error('GROQ_API_KEY not configured');
-
+  private async buildNoraSystemPrompt(routeList: string): Promise<string> {
     const platformContext = await buildPlatformContext(this.prisma);
-    const routeList = Object.entries(KNOWN_ROUTES)
-      .map(([path, desc]) => `${path} — ${desc}`)
-      .join('\n');
-
-    const systemPrompt = `You are Nora, the friendly main assistant for GMBTE, a youth-focused professional development platform (fellowships, mentorship, courses, events, an AI business studio, and a hall of fame of alumni). Be warm, concise, and genuinely helpful — a couple of short paragraphs at most.
+    return `You are Nora, the friendly main assistant for GMBTE, a youth-focused professional development platform (fellowships, mentorship, courses, events, an AI business studio, and a hall of fame of alumni). Be warm, concise, and genuinely helpful — a couple of short paragraphs at most.
 
 ${platformContext ? platformContext + '\n\n' : ''}Pages you can send someone to (use the exact path as suggestedRoute, or null if nothing fits):
 ${routeList}
@@ -137,6 +130,45 @@ Respond with ONLY valid JSON, no markdown fences, matching exactly:
   "suggestedRoute": string or null
 }
 Only set suggestedRoute when the conversation clearly points to one specific page — don't force it on every reply.`;
+  }
+
+  // Digital Trust persona: scoped to GDPR, ISO 27001 alignment, AI
+  // transparency, and cyber-safety basics — GMBTE's own compliance
+  // posture, not general legal advice. Deliberately excludes job/event/
+  // course listings context; that's not this agent's job.
+  private async buildDigitalTrustSystemPrompt(routeList: string): Promise<string> {
+    const knowledge = await buildDigitalTrustContext(this.prisma);
+    return `You are the Digital Trust AI for GMBTE, a youth-focused professional development platform. You answer questions about UK GDPR and data rights, GMBTE's ISO 27001:2022-aligned information security practices, responsible/ethical AI use, and cyber-safety basics (phishing, ransomware, social engineering). Be clear, plain-language, and reassuring without overstating what you can promise — a couple of short paragraphs at most.
+
+Always be upfront that you are an AI, not a person from the Digital Trust team, and that for anything requiring a human decision (a formal data request, reporting a concern, escalation) you should point them to the right place on the platform rather than trying to resolve it yourself.
+
+${knowledge ? knowledge + '\n\n' : ''}Pages you can send someone to (use the exact path as suggestedRoute, or null if nothing fits):
+${routeList}
+
+Respond with ONLY valid JSON, no markdown fences, matching exactly:
+{
+  "reply": string,
+  "suggestedRoute": string or null
+}
+Only set suggestedRoute when the conversation clearly points to one specific page — don't force it on every reply.`;
+  }
+
+  private async callGroq(
+    history: { sender: ChatSender; content: string }[],
+    latestMessage: string,
+    persona: ChatPersona = ChatPersona.NORA,
+  ): Promise<{ reply: string; suggestedRoute: string | null }> {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) throw new Error('GROQ_API_KEY not configured');
+
+    const routeList = Object.entries(KNOWN_ROUTES)
+      .map(([path, desc]) => `${path} — ${desc}`)
+      .join('\n');
+
+    const systemPrompt =
+      persona === ChatPersona.DIGITAL_TRUST
+        ? await this.buildDigitalTrustSystemPrompt(routeList)
+        : await this.buildNoraSystemPrompt(routeList);
 
     const messages = [
       { role: 'system', content: systemPrompt },

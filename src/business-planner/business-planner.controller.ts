@@ -11,6 +11,7 @@ import {
 import { BusinessPlannerService } from './business-planner.service';
 import { GenerateBusinessPlanDto } from './dto/generate-business-plan.dto';
 import { UpdatePlanProgressDto } from './dto/update-plan-progress.dto';
+import { UpdateRoadmapProgressDto } from './dto/update-roadmap-progress.dto';
 import { JwtAuthGuard } from 'src/guards/jwt-auth.guard';
 
 @Controller('business-planner')
@@ -42,6 +43,20 @@ export class BusinessPlannerController {
       req.user.userId,
       id,
       body.completedActionIndexes,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/roadmap-progress')
+  updateRoadmapProgress(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: UpdateRoadmapProgressDto,
+  ) {
+    return this.businessPlannerService.updateRoadmapProgress(
+      req.user.userId,
+      id,
+      body.completedRoadmapItems,
     );
   }
 

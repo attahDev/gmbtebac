@@ -58,10 +58,11 @@ async function fetchStructuredContext(prisma: PrismaService): Promise<string> {
 
 /** Small, hand-written narrative knowledge — "how mentorship works here",
  *  etc. Deliberately not auto-generated so it stays accurate and on-brand;
- *  admin-maintained via /chatbot/admin/knowledge. */
-async function fetchCuratedKnowledge(prisma: PrismaService): Promise<string> {
+ *  admin-maintained via /chatbot/admin/knowledge. Pass `category` to scope
+ *  to one topic (e.g. "digital-trust") instead of pulling everything. */
+async function fetchCuratedKnowledge(prisma: PrismaService, category?: string): Promise<string> {
   const articles = await prisma.knowledgeArticle.findMany({
-    where: { isActive: true },
+    where: { isActive: true, ...(category ? { category } : {}) },
     orderBy: { updatedAt: 'desc' },
   });
 
@@ -78,6 +79,16 @@ export async function buildPlatformContext(prisma: PrismaService): Promise<strin
     fetchStructuredContext(prisma),
     fetchCuratedKnowledge(prisma),
   ]);
+
+  return [structured, curated].filter(Boolean).join('\n\n');
+}
+
+/** Scoped context for the Digital Trust persona — GDPR/ISO/AI-transparency
+ *  knowledge only. No job/event/course listings; those aren't this
+ *  persona's job and would just dilute the system prompt. */
+export async function buildDigitalTrustContext(prisma: PrismaService): Promise<string> {
+  return fetchCuratedKnowledge(prisma, 'digital-trust');
+}
 
   return [structured, curated].filter(Boolean).join('\n\n');
 }

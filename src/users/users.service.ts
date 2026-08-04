@@ -60,6 +60,23 @@ export class UsersService {
     return user;
   }
 
+  // Only one refresh token is ever active per user (see RefreshTokenService —
+  // logging in revokes prior tokens), so "session" here means that single
+  // active token, not a multi-device list. If multi-device tracking is added
+  // later, this should switch to returning all non-revoked tokens for the user.
+  async getActiveSession(userId: string) {
+    const session = await this.prisma.refreshToken.findFirst({
+      where: { userId, isRevoked: false, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true, expiresAt: true },
+    });
+    return {
+      active: !!session,
+      startedAt: session?.createdAt ?? null,
+      expiresAt: session?.expiresAt ?? null,
+    };
+  }
+
   async updateProfile(
     userId: string,
     data: { firstname?: string; lastname?: string; organization?: string; region?: string },
